@@ -54,7 +54,10 @@ class matrix:
                                    # conditionals.
         return (self.contents[0][0] * self.contents[1][1]) - (self.contents[0][1] * self.contents[1][0])
     
-    def get_2x2_inverse(self):
+    def get_2x2_inverse(self): # This just uses the set formula.
+        
+                               # [ [ a, b ],           =     [ [ d, -b ],
+                               #   [ c, d ] ] ^ -1             [ -c, a ] ]
         det = self.get_2x2_determinant()
         
         inverse = [
@@ -92,7 +95,7 @@ class matrix:
         # Step 2: Make a 3x3 matrix of minors:
         contents = self.get_contents()
         
-        minors = matrix(
+        workingContents = matrix(
             [
                 [
                     matrix([[ contents[1][1], contents[1][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
@@ -122,9 +125,102 @@ class matrix:
         
         # Example:
         
+        #  [ [ 1, 6, 7 ],         Here, the minor of 1 (in the top left)
+        #    [ 0, 4, 9 ],         is:
+        #    [ 2, 3, 4 ] ]
+        #                         Det([ [ 4, 9 ],
+        #                               [ 3, 4 ] ] )
+        #
+        #                         which equates to 16 - 27, which is -11.
         
+        # Uh oh! Looks like someone overheard us talking about minors!
         
-         
+        # ⠀⠀⠀⠀⠀⠀⠀⢀⠀⡀⢀⠀⠄⢀⠠⠀⠄⡐⡐⢀⠂⡁⠂⠊⠀⠂⠨⠐⠌⡂⠅⠄⡂⠅⢀⠀⢀⠀⢐⠈⠫⠘⠋⠌⠛⠙⠛⠛⠩⠙
+        # ⠀⠠⠀⠀⠀⠀⠐⠀⠀⡀⠄⠀⠄⠠⠀⠂⠁⠠⠀⠀⠀⠀⠀⢀⠀⠂⠀⢀⠀⡀⠈⠀⠄⠈⠀⠐⠀⠐⡀⢈⠠⠀⠁⡀⠁⠈⠀⠁⠐⠈
+        # ⠠⠀⠀⠀⠀⠀⠐⠀⠁⠀⡀⠐⠀⡀⠄⠀⠀⠀⠀⠀⠀⡁⠀⠀⠀⠀⠄⠀⠀⠀⠂⠀⠄⠀⡈⠀⠁⠀⠄⠂⢀⠀⠁⠀⠀⠁⠈⠀⠐⠀
+        # ⠄⠐⠀⠀⠀⠀⠂⢀⠁⠄⠄⢈⠀⠀⠀⠀⠀⠂⠀⠐⠀⠀⠀⠂⠈⠀⡀⠄⠀⠀⠄⠀⠄⠂⠀⠀⠐⠀⠂⠀⡀⠐⠈⠀⡀⠂⠀⠈⠀⠀
+        # ⠀⡀⠀⠀⠀⠀⠈⠀⢀⠠⠐⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⡀⠁⠀⢀⠁⠀⠀⠀⡀⠂⠀⡀⠀⠠⠐⠀⠂⠁⠀⢀⠐⠀⠂⠀⠀⠈⠀⠀⠁
+        # ⠀⢀⠀⠀⠀⠀⠁⢀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⡀⠄⠀⡀⠈⠀⠀⠄⠐⠀⡀⠄⠁⠀⠀⢀⠀⡀⠀⠄⠁⢀⠠⠈⡀⠐⠈⠀⠈⠀⠈
+        # ⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠠⠀⠁⠀⠀⠀⠀⠁⠀⠀⠄⠠⠈⠄⡁⡐⡀⡁⠠⠠⡁⠄⠅⡂⠄⠠⠀⢀⠠⠀⠀⡀⠄⠀⠄⠀⠐⠀⠈
+        # ⠄⠂⠁⠀⠀⠈⠀⠐⠈⠀⠀⠀⠀⠀⠀⠀⢀⠀⠐⠀⡁⡐⡈⢌⢂⢂⠆⡪⣐⢁⠅⡢⠨⠨⡂⡑⢅⢐⠀⠠⠀⠂⢀⠀⠂⠀⠀⠂⠀⠀
+        # ⠀⠀⠀⠀⠠⠈⠀⡀⠂⠀⠀⠀⡀⠄⠂⠁⠀⠀⠀⡂⡂⡢⠊⡐⢁⠁⠊⠔⢜⠬⡪⡐⡅⡑⢔⢨⣐⡐⡅⠡⠐⠈⠀⠀⠀⠂⠁⠀⠀⠂
+        # ⢀⠀⠐⠀⠀⢀⠀⢀⠀⠀⡀⠀⢀⠀⠀⠀⡀⠄⡁⡂⡊⢄⠢⡪⡪⡪⡎⣆⢢⢘⢜⢵⢝⣞⢽⢕⠕⡙⢈⠐⠀⠐⠈⠀⠠⠀⠀⡀⠄⠀
+        # ⠀⠀⢀⠀⠂⠀⠀⡀⠀⠀⠀⡀⠄⠀⠠⠀⠀⡐⠌⡂⡪⡸⡘⠌⠌⠨⢨⡢⡣⡣⡳⡹⡵⡳⡝⠜⢔⠪⡪⠂⠀⠂⠀⠠⠀⠀⡀⠀⠀⠀
+        # ⠂⠈⠀⠀⠄⡐⢀⠀⠀⠈⢀⠀⠄⢅⢂⠀⡂⡊⢌⢢⢱⢸⢨⢪⢌⢎⢜⢼⡸⡜⢌⢮⡫⣇⢇⢕⢨⠣⡘⠀⠀⠄⠐⠀⠀⠄⠀⠀⠀⠂
+        # ⠀⠀⠀⠈⠀⠀⢀⠀⠀⠂⠠⠩⡊⡄⡅⠄⢂⢊⢢⢱⢸⢸⢸⢕⢧⣫⢳⢳⢕⡕⡕⡕⣝⡎⣗⢽⢜⢵⡱⠀⠀⠀⠀⢀⠀⠀⡀⠐⠀⠀
+        # ⠐⠀⠀⠀⠀⠀⠀⠀⠀⠄⠀⠈⠊⢆⢕⠠⢁⠢⡱⡘⡜⡜⣕⣝⢮⢮⣫⣳⢝⢎⢪⢪⡪⣞⢮⢮⡳⡳⡕⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠐
+        # ⠀⠀⠀⠀⠀⠀⠀⠀⠂⠀⠠⠀⠀⠀⢐⠈⠄⠕⢌⢪⢪⢪⢮⡪⣗⡽⣺⡪⣇⢇⢕⢑⢕⢯⢮⡳⡽⣕⢏⠀⠀⠂⠈⠀⠈⠀⠈⠀⠀⠄
+        # ⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⡀⠈⠀⠀⠌⠌⠜⢌⠎⡎⡮⣚⢮⡳⣝⡕⡯⡺⣜⢼⢜⢮⡺⡜⣞⣝⢮⠃⠀⠀⢀⠀⠀⠄⠀⠄⠂⠀⠀
+        # ⠀⠀⠀⠀⠀⠀⠀⠠⠀⠂⠀⠀⠀⠠⠀⢌⠨⢊⠆⡇⡇⡇⡇⣗⣝⢖⢕⠱⡹⠸⡱⡹⡱⢣⢫⢮⡪⠂⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠠
+        # ⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠂⠀⠁⠀⠀⢢⢂⠅⡪⢢⠣⡣⡣⡓⡞⣎⢎⢗⢜⢕⡲⡲⣸⢸⡸⡕⡁⠀⠄⠁⠀⠀⠀⠀⠈⠀⠀⠂⠁⠀
+        # ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢔⢕⢢⠨⢂⢇⢇⢇⢏⢎⢎⢧⡫⣳⢝⣞⢞⢮⡳⡹⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⡀⠀⠀⠀
+        # ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⡱⡱⡱⣑⢅⢂⠕⡱⡑⢕⢱⢱⢹⢸⡳⣳⣫⢗⣝⠎⠀⠀⠀⠄⠐⠀⠐⠀⠀⠠⠀⠀⠀⠀⠠
+        # ⠀⠀⠀⠀⠀⠀⠀⠀⡀⠠⠀⠂⠈⠄⡑⡜⡜⡜⣜⢔⠕⡌⡢⡊⡪⠸⡘⡜⡜⡮⣳⢽⡹⠜⢀⠀⡁⠄⠠⠀⡀⢀⠀⢀⠀⠀⠀⠀⡀⠀
+        # ⠀⠀⠀⡀⠠⠐⠀⠁⠀⠀⠠⡨⠨⡐⡜⢜⢜⢜⢼⡸⡱⡱⡱⡱⡱⡱⡌⡎⣜⣜⠜⢈⠈⠠⠀⠠⠀⠠⠐⠀⠠⠀⠄⠠⠀⠂⡀⠁⠀⠀
+        # ⠀⠈⠀⠀⠀⠀⠀⠠⠀⠀⠑⡌⡎⡜⡜⡜⣜⢕⡇⣗⢕⡕⣕⢧⢳⢕⢧⣻⡺⠨⠐⠀⠀⠂⠐⠀⠐⠀⠄⠂⠐⠀⠂⠐⠀⠁⢀⠈⢀⠁
+        # ⠁⠀⠂⠀⠐⠈⠀⢀⠀⠈⠀⠘⢸⠸⡌⢮⢪⢧⢳⢕⢗⢽⢜⡮⣳⣝⢗⠇⠡⠀⠂⢀⠁⠐⠈⠀⢁⠀⠂⡀⠁⠄⠁⡀⠁⠈⠀⡀⠄⢀
+        # ⢀⠀⠂⠈⠀⢀⠐⠀⠀⠈⢀⠈⠀⠁⢑⠡⢃⠣⢣⢫⢝⡽⡵⡫⡓⠘⠀⠂⠐⢀⠈⢀⠀⡁⠄⠁⠠⠀⢁⠀⠄⠂⠠⠀⢈⠀⠂⠀⠄⢀
+                
+        # Let's scare him away with a job application!
+        
+        #  ___________
+        # | MCDONALDS |
+        # | - $12/hr  |
+        # | ~~~~ ~~ ~ |
+        # | ~ ~~~ ~~  |
+        # | ~~ ~~~~   |
+        # | ~~~ ~ ~~~ |
+        # '-----------'
+        
+        # Okay good he's gone.
+        
+        # Anyway, now we're onto Step 3: finding the cofactors.
+        
+        workingContents[0][1] = 0 - workingContents[0][1]
+        workingContents[1][0] = 0 - workingContents[1][0]
+        workingContents[1][2] = 0 - workingContents[1][2]
+        workingContents[2][1] = 0 - workingContents[2][1]
+        
+        # Luckily, this step isn't as carcinogenic to program as the last step.
+        # We're just flipping the signs of some of the elements in a checkerboard pattern.
+        
+        # Like this:
+        
+        # [ [ 1, 1, 1 ],       We're gonna overlay this, and flip each element which lines up with a minus sign. (-)
+        #   [ 1, 1, 1 ], 
+        #   [ 1, 1, 1 ] ]      [ [ +, -, + ],
+        #                        [ -, +, - ],
+        #                        [ +, -, + ] ].
+        
+        #                      This gives us [ [ 1, -1, 1 ], 
+        #                                      [ -1, 1, -1 ], 
+        #                                      [ 1, -1, 1 ] ]
+        
+        #                      These are called our cofactors!
+        
+        # Thankfully, we only actualy change four of the elements, so we can just flip those and leave the rest.
+        
+        # Step 4: Transpose our cofactors, and divide them by our determinant from step 1.
+        # This one's fairly easy.
+        
+        transposedCofactors = [] # Yes, this is copied from get_transpose(). 
+                                 # I just didn't want to instantiate a whole new matrix object only to run get_contents() on it. 
+        
+        for i in range(3):
+            row = []
+            
+            for j in range(3):
+                row.append(workingContents[j][i])
+            transposedCofactors.append(row)
+        
+        try:
+            return matrix(transposedCofactors).multiply_contents(1 / det)
+        except:
+            print("This matrix is probably singular, so an inverse couldn't be found.")
+            
+        # Thank god it's over! I hope your enjoyed our munity through 3x3 matrix inversion.
+        # I'm probably not going to mansplain as much in the rest of my code but for other complex
+        # functions I'll get my dreaded comments out again.
                 
 
 # Graphics Objects
@@ -140,8 +236,6 @@ class vertex:
         
     def translate_by(self, vector):
         self.position += vector
-        
-    def rotate_euler()
         
 testMatrix = matrix([[1, 4, -4], [2, 9, 3]])
 print(testMatrix.get_order())
