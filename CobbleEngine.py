@@ -2,7 +2,7 @@ import pygame
 from tkinter import *
 
 # Mathmatical Objects
-class matrix:
+class Matrix:
     def __init__(self, contents: list):
         self.contents = contents # This assumes you're smart and don't need input validation. 
         
@@ -24,7 +24,7 @@ class matrix:
         self.order = (len(contents), len(contents[0])) # Same as in __init__()
         
     def multiply_contents(self, coefficient): # If you need to divide a matrix, you can just multiply it by the reciprocal of your coefficient.        
-                                              # Like this: matrix.multiply_contents(1 / numberYoureDividingBy)
+                                              # Like this: Matrix.multiply_contents(1 / numberYoureDividingBy)
         multiplied = []
         
         for i in range(self.order[0]):
@@ -46,7 +46,7 @@ class matrix:
                 row.append(self.contents[j][i])
             transpose.append(row)
         
-        return matrix(transpose)
+        return Matrix(transpose)
     
     def get_2x2_determinant(self): # Okay, I know this is really ugly but you can only 
                                    # find determinants for square matrices, and I'm only gonna be
@@ -66,9 +66,9 @@ class matrix:
         ]
         
         try:
-            return matrix(inverse).multiply_contents(1 / det)
+            return Matrix(inverse).multiply_contents(1 / det)
         except:
-            print(f"The matrix {self} is singular, so it has no inverse")
+            print(f"The matrix {self} is probably singular, so it has no inverse")
             return None
     
     def get_3x3_determinant(self): # This is based on the Rule of Saurus
@@ -95,31 +95,31 @@ class matrix:
         # Step 2: Make a 3x3 matrix of minors:
         contents = self.get_contents()
         
-        workingContents = matrix(
+        workingContents = Matrix(
             [
                 [
-                    matrix([[ contents[1][1], contents[1][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[1][0], contents[1][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[1][0], contents[1][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
+                    Matrix([[ contents[1][1], contents[1][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[1][0], contents[1][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[1][0], contents[1][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
                 ],
                 
                 [
-                    matrix([[ contents[0][1], contents[0][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[0][0], contents[0][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[0][0], contents[0][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
+                    Matrix([[ contents[0][1], contents[0][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[0][0], contents[0][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[0][0], contents[0][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
                 ],
                 
                 [
-                    matrix([[ contents[0][1], contents[0][2] ], [ contents[1][1], contents[1][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[0][0], contents[0][2] ], [ contents[1][0], contents[1][2] ]]).get_2x2_determinant(), 
-                    matrix([[ contents[0][0], contents[0][1] ], [ contents[1][0], contents[1][1] ]]).get_2x2_determinant()
+                    Matrix([[ contents[0][1], contents[0][2] ], [ contents[1][1], contents[1][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[0][0], contents[0][2] ], [ contents[1][0], contents[1][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ contents[0][0], contents[0][1] ], [ contents[1][0], contents[1][1] ]]).get_2x2_determinant()
                 ]
             ]
         )
         
-        # This makes me want to kill myself.
+        # This makes me want to kill myself. /j
         
-        # Basically, we're making a 2x2 matrix out of all the elements that 
+        # Basically, for each minor we're making a 2x2 matrix out of all the elements that 
         # *aren't in the same row or collumb* as the element we're finding a minor for.
         # Then, the minor is just the determinant of that 2x2 matrix.
         
@@ -215,7 +215,7 @@ class matrix:
             transposedCofactors.append(row)
         
         try:
-            return matrix(transposedCofactors).multiply_contents(1 / det)
+            return Matrix(transposedCofactors).multiply_contents(1 / det)
         except:
             print("This matrix is probably singular, so an inverse couldn't be found.")
             
@@ -223,41 +223,115 @@ class matrix:
         # I'm probably not going to mansplain as much in the rest of my code but for other complex
         # functions I'll get my dreaded comments out again.
 
-
-# Constructs
-
-class construct:
-    
+    def apply(self, right): # Matrix multiplication isn't commutative, so we have one
+                            # on the left, and one on the right.
                 
+                            # Self is on the left. Can you guess where Right is?
+
+                            # A: Also on the left
+                            # B: Idk
+                            # C: Please stop leaving these comments
+                            # D: On the right
+
+                            # If you picked D, that's correct well done!!! If you picked
+                            # A or B then here's your participation award: 
+
+                            #   _______
+                            #  |       |
+                            # (|  NOT  |)
+                            #  | QUITE!|
+                            #   \     /
+                            #    `---'
+                            #    _|_|_
+
+        selfContents = self.get_contents()   # I'm not fucking getting the contents from
+        rightContents = right.get_contents() # each object every single time idc about 
+                                             # memory efficiency
+
+        if self.get_order()[1] != right.get_order()[0]:
+            print(f"The matrices {self} and {right} can't be applied!")
+            return None # SEe? I can do input validation!!!
+
+        productOrder = (self.get_order()[0], right.get_order()[1])
+        workingContents = []
+                    
+        for row in range(productOrder[0]):
+            workingContents.append([])
+
+            for collumb in range(productOrder[1]):
+                scalarProduct = 0
+                for i in range(productOrder[1]):
+                    scalarProduct += selfContents[row][i] * rightContents[i][collumb]
+
+                workingContents[row].append(scalarProduct)
+
+        return Matrix(workingContents)
+
+
+
+
+
+# Some usefull constants before we move on
+
+# Identity matrices
+I2 = Matrix([[1, 0], 
+             [0, 1]])
+
+I3 = Matrix([[1, 0, 0], 
+             [0, 1, 0], 
+             [0, 0, 1]])
+
+# Origin vector
+ORIGIN = Matrix([[0], 
+                 [0], 
+                 [0]])
+
+# Abstracts
+
+class Abstract:
+    def __init__(self, location = ORIGIN, distortion = I3, parent = None):
+        self.location = location
+        self.distortion = distortion
+        # Right, I know you're not going to be happy with this but the Distortion
+        # parameter handles both orientation AND scale. Why? Because quaternions
+        # scare me and God FORBID I actually research anything new for my research 
+        # project
+        self.parent = parent
+
+    def move(vector): # For future reference, YOU INPUT THE CONTENTS OF THE MATRIX
+                      # NOT THE ACTUAL MATRIX GET IT RIGHT!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.location += Matrix(vector)
+
+    def rotate_euler_radians(euler):
 
 # Graphics Objects
 
-class tri:
-    def __init__(self, vertices, parent = ): # Vertices should be an array of 3 arrays.
-                                  # Each array is a coordinate, done in clockwise 
-                                  # order if you're looking at the opaque side.
+class Poly(Abstract):
+    def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
+                                            # Each array is a coordinate, done in clockwise 
+                                            # order if you're looking at the opaque side.
 
-                                  # This gets converted to a 3x3 matrix with each
-                                  # collumb being a coordinate.
+                                            # This gets converted to a 3xn matrix with each
+                                            # collumb being a coordinate.
 
-        self.vertices = matrix(vertices).get_transpose()
+                                            # Is this really annoying? Yes!
+                                            # But it makes it easier to apply transformation 
+                                            # matrices to polygons so I'll just hate myself later 
 
-
-
+        self.vertices = Matrix(vertices).get_transpose()
 
     def translate_world(self, vector):
+        pass
         
         
-testMatrix = matrix([[1, 4, -4], [2, 9, 3]])
-print(testMatrix.get_order())
-print(testMatrix.get_transpose().get_contents())
+testMatrix = Matrix([[1, 4, -4], 
+                     [2, 9, 3]])
 
-test3x3matrix = matrix([[3, 1, 0], [0, -9, 2], [-1, -4, 1]])
-print(test3x3matrix.get_3x3_determinant())
-print(test3x3matrix.get_transpose().get_contents())
+testMatrix2 = Matrix([[2],
+                      [4],
+                      [-2]])
 
-test2x2matrix = matrix([[1, 0], [0, -1]])
-print(test2x2matrix.get_2x2_inverse().get_contents())
+print(textMatrix.apply(testMatrix2).get_contents())
 
 # Pygame Setup - initialises the window, 
 pygame.init()
