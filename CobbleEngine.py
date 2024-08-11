@@ -338,20 +338,39 @@ class Abstract:
     def set_parent(self, parent):
         if parent:
             parent.remove_child(self)
-            
         self.parent = parent
+            
+        parent.add_child(self)
         
+    def get_children(self):
+        return self.children
+    
     def add_child(self, child):
+        child.set_parent(self)
         self.children.append(child)
         
     def remove_child(self, child):
+        child.set_parent(self.parent)
         self.children.remove(child)
         
     def move(self, vector):
         self.location = self.location.add(vector)
 
-    def rotate_euler_radians(euler):
-        pass
+    def rotate_euler_radians(euler): # This follows the order yxz
+        sinx = math.sin(euler[0])
+        cosx = math.cos(euler[0])
+        siny = math.sin(euler[1])
+        cosy = math.cos(euler[1])
+        sinz = math.sin(euler[2])
+        cosz = math.cos(euler[2])
+        
+        self.distortion = Matrix([[cosz, -sinz, 0],
+                                  [sinz, cosz, 0],
+                                  [0, 0, 1]]).apply(Matrix([[1, 0, 0],
+                                                            [0, cosx, -sinx],
+                                                            [0, sinx, cosx]])).apply(Matrix([[cosy, 0, siny],
+                                                                                            [0, 1, 0],
+                                                                                            [-cosy, 0, cosy]])).apply(self.distortion)
     
     
     
@@ -384,7 +403,6 @@ helloWorld = Abstract(
     Matrix([[0, 1, 0],
             [-1, 0, 0],
             [0, 0, 1]])
-    
     )
 
 print(helloWorld)
