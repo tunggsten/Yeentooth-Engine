@@ -1,7 +1,11 @@
 import pygame
 from tkinter import *
 
-# Mathmatical Objects
+
+
+
+# ---------------- MATHEMATICAL OBJECTS ----------------
+
 class Matrix:
     def __init__(self, contents: list):
         self.contents = contents # This assumes you're smart and don't need input validation. 
@@ -93,26 +97,25 @@ class Matrix:
         # That wasn't so hard!
         
         # Step 2: Make a 3x3 matrix of minors:
-        contents = self.get_contents()
         
         workingContents = Matrix(
             [
                 [
-                    Matrix([[ contents[1][1], contents[1][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[1][0], contents[1][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[1][0], contents[1][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
+                    Matrix([[ self.contents[1][1], self.contents[1][2] ], [ self.contents[2][1], self.contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[1][0], self.contents[1][2] ], [ self.contents[2][0], self.contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[1][0], self.contents[1][1] ], [ self.contents[2][0], self.contents[2][1] ]]).get_2x2_determinant()
                 ],
                 
                 [
-                    Matrix([[ contents[0][1], contents[0][2] ], [ contents[2][1], contents[2][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[0][0], contents[0][2] ], [ contents[2][0], contents[2][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[0][0], contents[0][1] ], [ contents[2][0], contents[2][1] ]]).get_2x2_determinant()
+                    Matrix([[ self.contents[0][1], self.contents[0][2] ], [ self.contents[2][1], self.contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[0][0], self.contents[0][2] ], [ self.contents[2][0], self.contents[2][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[0][0], self.contents[0][1] ], [ self.contents[2][0], self.contents[2][1] ]]).get_2x2_determinant()
                 ],
                 
                 [
-                    Matrix([[ contents[0][1], contents[0][2] ], [ contents[1][1], contents[1][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[0][0], contents[0][2] ], [ contents[1][0], contents[1][2] ]]).get_2x2_determinant(), 
-                    Matrix([[ contents[0][0], contents[0][1] ], [ contents[1][0], contents[1][1] ]]).get_2x2_determinant()
+                    Matrix([[ self.contents[0][1], self.contents[0][2] ], [ self.contents[1][1], self.contents[1][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[0][0], self.contents[0][2] ], [ self.contents[1][0], self.contents[1][2] ]]).get_2x2_determinant(), 
+                    Matrix([[ self.contents[0][0], self.contents[0][1] ], [ self.contents[1][0], self.contents[1][1] ]]).get_2x2_determinant()
                 ]
             ]
         )
@@ -222,6 +225,23 @@ class Matrix:
         # Thank god it's over! I hope your enjoyed our munity through 3x3 matrix inversion.
         # I'm probably not going to mansplain as much in the rest of my code but for other complex
         # functions I'll get my dreaded comments out again.
+        
+    def add(self, matrixToAddIdk):
+        if self.order != matrixToAddIdk.order:
+            print("These have different orders dumbass you can't add them")
+            return None
+        
+        contentsToAdd = matrixToAddIdk.get_contents()
+        
+        result = []
+        
+        for row in range(self.order[0]):
+            result.append([])
+            
+            for collumb in range(self.order[1]):
+                result[row].append(self.contents[row][collumb] + contentsToAdd[row][collumb])
+        
+        return Matrix(result)
 
     def apply(self, right): # Matrix multiplication isn't commutative, so we have one
                             # on the left, and one on the right.
@@ -244,15 +264,16 @@ class Matrix:
                             #    `---'
                             #    _|_|_
 
-        selfContents = self.get_contents()   # I'm not fucking getting the contents from
-        rightContents = right.get_contents() # each object every single time idc about 
-                                             # memory efficiency
+                                           # I'm not fucking getting the contents from
+        rightContents = right.get_contents # each object every single time idc about 
+                                           # memory efficiency
 
         if self.get_order()[1] != right.get_order()[0]:
             print(f"The matrices {self} and {right} can't be applied!")
             return None # SEe? I can do input validation!!!
 
         productOrder = (self.get_order()[0], right.get_order()[1])
+        collumbLength = self.get_order()[1]
         workingContents = []
                     
         for row in range(productOrder[0]):
@@ -260,15 +281,12 @@ class Matrix:
 
             for collumb in range(productOrder[1]):
                 scalarProduct = 0
-                for i in range(productOrder[1]):
-                    scalarProduct += selfContents[row][i] * rightContents[i][collumb]
+                for i in range(collumbLength):                
+                    scalarProduct += self.contents[row][i] * rightContents[i][collumb]
 
                 workingContents[row].append(scalarProduct)
 
         return Matrix(workingContents)
-
-
-
 
 
 # Some usefull constants before we move on
@@ -286,10 +304,13 @@ ORIGIN = Matrix([[0],
                  [0], 
                  [0]])
 
-# Abstracts
+
+
+
+# ---------------- ABSTRACTS ----------------
 
 class Abstract:
-    def __init__(self, location = ORIGIN, distortion = I3, parent = None):
+    def __init__(self, location = ORIGIN, distortion = I3, parent = None, children = []):
         self.location = location
         self.distortion = distortion
         # Right, I know you're not going to be happy with this but the Distortion
@@ -297,14 +318,45 @@ class Abstract:
         # scare me and God FORBID I actually research anything new for my research 
         # project
         self.parent = parent
-
-    def move(vector): # For future reference, YOU INPUT THE CONTENTS OF THE MATRIX
-                      # NOT THE ACTUAL MATRIX GET IT RIGHT!!!!!!!!!!!!!!!!!!!!!!!!!!
-        self.location += Matrix(vector)
+        self.children = children
+        
+    def get_location(self):
+        return self.location
+    
+    def set_location(self, location):
+        self.location = location
+        
+    def get_distortion(self):
+        return self.distortion
+    
+    def set_distortion(self, distortion):
+        self.distortion = distortion
+        
+    def get_parent(self):
+        return self.parent
+    
+    def set_parent(self, parent):
+        if parent:
+            parent.remove_child(self)
+            
+        self.parent = parent
+        
+    def add_child(self, child):
+        self.children.append(child)
+        
+    def remove_child(self, child):
+        self.children.remove(child)
+        
+    def move(self, vector):
+        self.location = self.location.add(vector)
 
     def rotate_euler_radians(euler):
+        pass
+    
+    
+    
 
-# Graphics Objects
+# ---------------- GRAPHICS OBJECTS ----------------
 
 class Poly(Abstract):
     def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
@@ -321,17 +373,29 @@ class Poly(Abstract):
         self.vertices = Matrix(vertices).get_transpose()
 
     def translate_world(self, vector):
-        pass
+        self.location = self.location.add(Matrix(vector))
         
         
-testMatrix = Matrix([[1, 4, -4], 
-                     [2, 9, 3]])
+helloWorld = Abstract(
+    Matrix([[4],
+            [5],
+            [-2]]),
+    
+    Matrix([[0, 1, 0],
+            [-1, 0, 0],
+            [0, 0, 1]])
+    
+    )
 
-testMatrix2 = Matrix([[2],
-                      [4],
-                      [-2]])
+print(helloWorld)
 
-print(textMatrix.apply(testMatrix2).get_contents())
+print(helloWorld.get_location().get_contents())
+
+helloWorld.move(Matrix([[1],
+                        [3],
+                        [1]]))
+
+print(helloWorld.get_location().get_contents())
 
 # Pygame Setup - initialises the window, 
 pygame.init()
