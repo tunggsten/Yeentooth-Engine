@@ -1,4 +1,5 @@
 import pygame
+import math
 from tkinter import *
 
 
@@ -264,9 +265,9 @@ class Matrix:
                             #    `---'
                             #    _|_|_
 
-                                           # I'm not fucking getting the contents from
-        rightContents = right.get_contents # each object every single time idc about 
-                                           # memory efficiency
+                                             # I'm not fucking getting the contents from
+        rightContents = right.get_contents() # each object every single time idc about 
+                                             # memory efficiency
 
         if self.get_order()[1] != right.get_order()[0]:
             print(f"The matrices {self} and {right} can't be applied!")
@@ -356,13 +357,13 @@ class Abstract:
     def move(self, vector):
         self.location = self.location.add(vector)
 
-    def rotate_euler_radians(euler): # This follows the order yxz
-        sinx = math.sin(euler[0])
-        cosx = math.cos(euler[0])
-        siny = math.sin(euler[1])
-        cosy = math.cos(euler[1])
-        sinz = math.sin(euler[2])
-        cosz = math.cos(euler[2])
+    def rotate_euler_radians(self, x, y, z): # This follows the order yxz
+        sinx = math.sin(x)
+        cosx = math.cos(x)
+        siny = math.sin(y)
+        cosy = math.cos(y)
+        sinz = math.sin(z)
+        cosz = math.cos(z)
         
         self.distortion = Matrix([[cosz, -sinz, 0],
                                   [sinz, cosz, 0],
@@ -414,6 +415,12 @@ helloWorld.move(Matrix([[1],
                         [1]]))
 
 print(helloWorld.get_location().get_contents())
+
+print(helloWorld.get_distortion().get_contents())
+
+helloWorld.rotate_euler_radians(math.pi / 4, math.pi / 4, math.pi / 4)
+
+print(helloWorld.get_distortion().get_contents())
 
 # Pygame Setup - initialises the window, 
 pygame.init()
