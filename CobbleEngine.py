@@ -335,8 +335,8 @@ class Abstract:
     def get_parent(self):
         return self.parent
     
-    def set_parent(self, parent):
-        if parent:
+    def set_parent(self, parent): # Alter all of the reparenting functions later to 
+        if parent:                # preserve world-space positions
             parent.remove_child(self)
             
         self.parent = parent
@@ -345,8 +345,20 @@ class Abstract:
         self.children.append(child)
         
     def remove_child(self, child):
+        child.set_parent(self.parent)
         self.children.remove(child)
+        self.parent.add_child(child)
+
+    def delete_self(self):
+        for child in self.children:
+            child.set_parent(self.parent)
+
+        parent.remove_child(self)  
+
+    def delete_self_and_children(self):
+
         
+
     def move(self, vector):
         self.location = self.location.add(vector)
 
@@ -358,7 +370,7 @@ class Abstract:
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
-class Poly(Abstract):
+class Poly(Abstract): # This should be a child to a mesh abstract.
     def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
                                             # Each array is a coordinate, done in clockwise 
                                             # order if you're looking at the opaque side.
@@ -375,7 +387,36 @@ class Poly(Abstract):
     def translate_world(self, vector):
         self.location = self.location.add(Matrix(vector))
         
+class Camera(Abstract):
+    def __init__(self, perspectiveConstant):
+        self.perspectiveConstant = perspectiveConstant
         
+    def project_tri(self, tri):
+        relativeVertices = self.distortion.get_3x3_inverse().apply(
+            tri.vertices.add(Matrix([[-self.location[0][0], -self.location[0][0], -self.location[0][0]],
+                                     [-self.location[1][0], -self.location[1][0], -self.location[1][0]],
+                                     [-self.location[2][0], -self.location[2][0], -self.location[2][0]]]))).get_contents()
+
+            # That was horrible! 
+
+            # Lets look at that step-by-step:
+
+            # First, we subtract the camera's location from the location of each vertex.
+            # This gives us their postiions relative to *the camera's location* 
+            # (not relative to the camera!!!!!)
+
+            # Next, we apply the *inverse* of the camera's distortion to the matrix we
+            # got in the last step.
+            # This gives us all the coordinates properly relative to the camera.
+
+            # Then, we get the contents of the result so we can use the values in code.
+
+        projectedCoordinates = []
+
+        for i in range(3):
+            projectedCoordinates.append([])
+
+
 helloWorld = Abstract(
     Matrix([[4],
             [5],
