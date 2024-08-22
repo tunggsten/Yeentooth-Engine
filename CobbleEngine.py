@@ -1,5 +1,8 @@
 import pygame
 import math
+import multiprocessing
+import numpy
+import time
 from tkinter import *
 
 
@@ -359,14 +362,23 @@ class Abstract:
         for child in self.children:
             child.set_parent(self.parent)
 
-        parent.remove_child(self)  
+        self.parent.remove_child(self)  
+        
+        del self
 
     def delete_self_and_children(self):
-
+        if self.children:
+            for child in children:
+                child.delete_self_and_children()
         
+        self.parent.remove_child(self)
+        
+        del self
 
-    def move(self, vector):
+    def translate_local(self, vector):
         self.location = self.location.add(vector)
+        
+    # Add world space translations and distortions later
 
     def rotate_euler_radians(self, x, y, z): # This follows the order yxz
         sinx = math.sin(x)
@@ -389,7 +401,7 @@ class Abstract:
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
-class Poly(Abstract): # This should be a child to a mesh abstract.
+class Poly(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
     def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
                                             # Each array is a coordinate, done in clockwise 
                                             # order if you're looking at the opaque side.
@@ -402,9 +414,6 @@ class Poly(Abstract): # This should be a child to a mesh abstract.
                                             # matrices to polygons so I'll just hate myself later 
 
         self.vertices = Matrix(vertices).get_transpose()
-
-    def translate_world(self, vector):
-        self.location = self.location.add(Matrix(vector))
         
 class Camera(Abstract):
     def __init__(self, perspectiveConstant):
@@ -434,33 +443,50 @@ class Camera(Abstract):
 
         for i in range(3):
             projectedCoordinates.append([])
+            
+def threadTest():
+        testMatrix = Matrix([[2, 1],
+                            [0, 1]])
+        for i in range(12):
+            testMatrix = testMatrix.apply(testMatrix)
+
+            
+startTime = time.time()
+        
+for i in range(200):
+    threadTest()
+print(f"Finished sequential test in {time.time() - startTime} seconds")
 
 
-helloWorld = Abstract(
-    Matrix([[4],
-            [5],
-            [-2]]),
+if __name__ == "__main__": # I hate having to use this but otherwise the multiprocessing throws a hissy fit
     
-    Matrix([[0, 1, 0],
-            [-1, 0, 0],
-            [0, 0, 1]])
-    )
+    startTime = time.time()
 
-print(helloWorld)
+    activeProcesses = []
+    for i in range(200):
+        activeProcesses.append(multiprocessing.Process(target=threadTest))
+        activeProcesses[i].start()
+        
+    for process in activeProcesses:
+        process.start()
+        
+    for process in activeProcesses:
+        process.join()
+        
+    print(f"Finished multithreaded test in {time.time() - startTime} seconds")
 
-print(helloWorld.get_location().get_contents())
-
-helloWorld.move(Matrix([[1],
-                        [3],
-                        [1]]))
-
-print(helloWorld.get_location().get_contents())
-
-print(helloWorld.get_distortion().get_contents())
-
-helloWorld.rotate_euler_radians(math.pi / 4, math.pi / 4, math.pi / 4)
-
-print(helloWorld.get_distortion().get_contents())
+def numpyThreadTest():
+    testMatrix = numpy.array([[2, 1],
+                                [0, 1]])
+    
+    for i in range(12):
+        testMatrix = numpy.matmul(testMatrix, testMatrix)
+    
+startTime = time.time()
+    
+for i in range(200):
+    numpyThreadTest()
+print(f"Finished numpy test in {time.time() - startTime} seconds")
 
 # Pygame Setup - initialises the window, 
 pygame.init()
