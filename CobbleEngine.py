@@ -10,13 +10,19 @@ from tkinter import *
 
 # ---------------- MATHEMATICAL OBJECTS ----------------
 
-class Matrix:
+class Matrix: # Everything in this class runs slower than my grandma's metabolism and she's dead.
+
+              # It won't run on a gpu, so for everything I will just use numpy instead.
+
+              # However, I was originally going to use this and I put a lot of effort into
+              # it, so I'm going to leave it here even if I never use it.
+
     def __init__(self, contents: list):
         self.contents = contents # This assumes you're smart and don't need input validation. 
         
-                                 # I'm potentially going to be making a lot of new matrices 
-                                 # in the main loop, so I'd rather not spend four years running
-                                 # nine million conditionals every single frame to make sure I 
+                                 # I'm potentially going to be making a lot of new matrices           <------- When I wrote these comments I thought
+                                 # in the main loop, so I'd rather not spend four years running                I was actually going to use this class,
+                                 # nine million conditionals every single frame to make sure I                 Hence the cornercutting
                                  # haven't messed the parameters up. 
                                  
                                  # I'll regret this later but we'll burn that bridge when we 
@@ -291,10 +297,14 @@ class Matrix:
                 workingContents[row].append(scalarProduct)
 
         return Matrix(workingContents)
+    
+    def get_numpy_equivalent(self): # This is the worst function I've ever written.
+        return numpy.array(self.contents)
 
 
 # Some usefull constants before we move on
 
+'''
 # Identity matrices
 I2 = Matrix([[1, 0], 
              [0, 1]])
@@ -306,36 +316,107 @@ I3 = Matrix([[1, 0, 0],
 # Origin vector
 ORIGIN = Matrix([[0], 
                  [0], 
-                 [0]])
+                 [0]]) '''
 
 
+# Okay now here are the constants i'm actually going to use
+
+I2 = numpy.array([[1, 0],
+                  {0, 1}])
+
+I3 = numpy.array([[1, 0, 0],
+                  [0, 1, 0],
+                  [0, 0, 1]])
+
+ORIGIN = numpy.array([[0],
+                      [0],
+                      [0]])
 
 
 # ---------------- ABSTRACTS ----------------
 
-class Abstract:
-    def __init__(self, location = ORIGIN, distortion = I3, parent = None, children = []):
-        self.location = location
-        self.distortion = distortion
-        # Right, I know you're not going to be happy with this but the Distortion
-        # parameter handles both orientation AND scale. Why? Because quaternions
-        # scare me and God FORBID I actually research anything new for my research 
-        # project
+class Abstract: # Finally, the interesting stuff!!!
+                # Again, cause my matrix class was so clapped I'm using numpy for everything
+
+    def __init__(self, location: numpy.array = ORIGIN, distortion: numpy.array = I3, parent = None, children = []):
+        self.immediateLocation = location
+        self.globalLocation = self.get_global_transform()
+
+        self.immediateDistortion = distortion
+        self.globalDistortion =
+        # I know you're not going to be happy with this but the Distortion
+        # parameter handles both orientation and scale. Why? Because quaternions
+        # scare me and god FORBID I actually research anything
+
         self.parent = parent
         self.children = children
+
+    def __init__(self, location: list = ORIGIN, distortion: list = I3, parent = None, children = []):
+        self.immediateLocation = numpy.array(location)
+        self.immediateDistortion = numpy.array(distortion)    # This is an override for if you want to use raw coordinates
+        self.parent = parent                         # to initialise it.
+        self.children = children
+
+
+
+    # Transform functions:
+
+    def get_global_transform(self):
+        globalTransform = (self.immediateLocation, self.immediateDistortion)
+
+        if self.parent:
+            globalTransform = (globalTransform[1] @ self.parent.get_global_transform()[1])
+        else:
         
     def get_location(self):
-        return self.location
+        return self.immediateLocation
     
-    def set_location(self, location):
-        self.location = location
+    def set_location(self, location: numpy.array): # I've made override for these depending on the
+        self.immediateLocation = location          # parameter type.
+    
+    def set_location(self, location: list):
+        self.immediateLocation = numpy.array(location)
+
+
         
     def get_distortion(self):
-        return self.distortion
+        return self.immediateDistortion
     
-    def set_distortion(self, distortion):
-        self.distortion = distortion
+    def set_distortion(self, distortion: numpy.array):
+        self.immediateDistortion = distortion
+
+    def set_distortion(self, distortion: list):
+        self.immediateDistortion = numpy.array(distortion)
+
+
+    
+    def translate_local(self, vector: numpy.array):
+        self.immediateLocation += vector
+
+    def translate_local(self, vector: list):
+        self.immediateLocation += numpy.array(vector)
+
+
+
+    def rotate_euler_radians(self, x, y, z): # This follows the order yxz
+        sinx = math.sin(x)
+        cosx = math.cos(x)
+        siny = math.sin(y)
+        cosy = math.cos(y)
+        sinz = math.sin(z)
+        cosz = math.cos(z)
         
+        self.immediateDistortion = numpy.array([[cosz, -sinz, 0],
+                                  [sinz, cosz, 0],
+                                  [0, 0, 1]]) @ numpy.array(Matrix([[1, 0, 0],
+                                                            [0, cosx, -sinx],
+                                                            [0, sinx, cosx]])) @ numpy.array(Matrix([[cosy, 0, siny],
+                                                                                            [0, 1, 0],
+                                                                                            [-cosy, 0, cosy]])) @ self.immediateDistortion
+    
+    
+    # Heirachal functions:
+
     def get_parent(self):
         return self.parent
     
@@ -345,6 +426,8 @@ class Abstract:
         self.parent = parent
             
         parent.add_child(self)
+
+
         
     def get_children(self):
         return self.children
@@ -355,8 +438,12 @@ class Abstract:
         
     def remove_child(self, child):
         child.set_parent(self.parent)
+
         self.children.remove(child)
+
         self.parent.add_child(child)
+
+
 
     def delete_self(self):
         for child in self.children:
@@ -367,63 +454,34 @@ class Abstract:
         del self
 
     def delete_self_and_children(self):
-        if self.children:
-            for child in children:
-                child.delete_self_and_children()
-        
+        for child in self.children:
+            child.delete_self_and_children()
+    
         self.parent.remove_child(self)
         
         del self
 
-    def translate_local(self, vector):
-        self.location = self.location.add(vector)
-        
-    # Add world space translations and distortions later
-
-    def rotate_euler_radians(self, x, y, z): # This follows the order yxz
-        sinx = math.sin(x)
-        cosx = math.cos(x)
-        siny = math.sin(y)
-        cosy = math.cos(y)
-        sinz = math.sin(z)
-        cosz = math.cos(z)
-        
-        self.distortion = Matrix([[cosz, -sinz, 0],
-                                  [sinz, cosz, 0],
-                                  [0, 0, 1]]).apply(Matrix([[1, 0, 0],
-                                                            [0, cosx, -sinx],
-                                                            [0, sinx, cosx]])).apply(Matrix([[cosy, 0, siny],
-                                                                                            [0, 1, 0],
-                                                                                            [-cosy, 0, cosy]])).apply(self.distortion)
-    
     
     
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
-class Poly(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
-    def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
-                                            # Each array is a coordinate, done in clockwise 
-                                            # order if you're looking at the opaque side.
-
-                                            # This gets converted to a 3xn matrix with each
-                                            # collumb being a coordinate.
-
-                                            # Is this really annoying? Yes!
-                                            # But it makes it easier to apply transformation 
-                                            # matrices to polygons so I'll just hate myself later 
-
-        self.vertices = Matrix(vertices).get_transpose()
+class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of tris.
+    def __init__(self, vertices, colour):
+        self.vertices = vertices
         
 class Camera(Abstract):
     def __init__(self, perspectiveConstant):
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, tri):
-        relativeVertices = self.distortion.get_3x3_inverse().apply(
-            tri.vertices.add(Matrix([[-self.location[0][0], -self.location[0][0], -self.location[0][0]],
-                                     [-self.location[1][0], -self.location[1][0], -self.location[1][0]],
-                                     [-self.location[2][0], -self.location[2][0], -self.location[2][0]]]))).get_contents()
+    def project_tri(self, tri): # This isn't using my matrix class because it's incredibly slow and 
+                                # this function gets called several hundred times per frame so it needs
+                                # to be faster.
+
+        relativeVertices = self.immediateDistortion.get_3x3_inverse().apply(
+            tri.vertices.add(Matrix([[-self.immediateLocation[0][0], -self.immediateLocation[0][0], -self.immediateLocation[0][0]],
+                                     [-self.immediateLocation[1][0], -self.immediateLocation[1][0], -self.immediateLocation[1][0]],
+                                     [-self.immediateLocation[2][0], -self.immediateLocation[2][0], -self.immediateLocation[2][0]]]))).get_contents()
 
             # That was horrible! 
 
@@ -444,49 +502,8 @@ class Camera(Abstract):
         for i in range(3):
             projectedCoordinates.append([])
             
-def threadTest():
-        testMatrix = Matrix([[2, 1],
-                            [0, 1]])
-        for i in range(12):
-            testMatrix = testMatrix.apply(testMatrix)
+helloWorld = Abstract()
 
-            
-startTime = time.time()
-        
-for i in range(200):
-    threadTest()
-print(f"Finished sequential test in {time.time() - startTime} seconds")
-
-
-if __name__ == "__main__": # I hate having to use this but otherwise the multiprocessing throws a hissy fit
-    
-    startTime = time.time()
-
-    activeProcesses = []
-    for i in range(200):
-        activeProcesses.append(multiprocessing.Process(target=threadTest))
-        activeProcesses[i].start()
-        
-    for process in activeProcesses:
-        process.start()
-        
-    for process in activeProcesses:
-        process.join()
-        
-    print(f"Finished multithreaded test in {time.time() - startTime} seconds")
-
-def numpyThreadTest():
-    testMatrix = numpy.array([[2, 1],
-                                [0, 1]])
-    
-    for i in range(12):
-        testMatrix = numpy.matmul(testMatrix, testMatrix)
-    
-startTime = time.time()
-    
-for i in range(200):
-    numpyThreadTest()
-print(f"Finished numpy test in {time.time() - startTime} seconds")
 
 # Pygame Setup - initialises the window, 
 pygame.init()
