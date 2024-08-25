@@ -1,17 +1,19 @@
 import pygame
-import math
-import multiprocessing
-import numpy
-import time
 from tkinter import *
 
+import math
+import time
 
 
 
 # ---------------- MATHEMATICAL OBJECTS ----------------
 
-class Matrix:
-    def __init__(self, contents: list):
+class Matrix:  
+    def __init__(self, contents: list): # All the functions in this class are slower than my 
+                                        # grandma's metabolism and she's dead.
+                                        
+                                        # 
+                                        
         self.contents = contents # This assumes you're smart and don't need input validation. 
         
                                  # I'm potentially going to be making a lot of new matrices 
@@ -23,14 +25,14 @@ class Matrix:
                                  # come to it.
                                  
         self.order = (len(contents), len(contents[0])) # Number of rows followed by the number of collumbs
-        
+           
     def get_contents(self):
         return self.contents
-    
+       
     def set_contents(self, contents):
         self.contents = contents
         self.order = (len(contents), len(contents[0])) # Same as in __init__()
-        
+         
     def multiply_contents(self, coefficient): # If you need to divide a matrix, you can just multiply it by the reciprocal of your coefficient.        
                                               # Like this: Matrix.multiply_contents(1 / numberYoureDividingBy)
         multiplied = []
@@ -40,10 +42,10 @@ class Matrix:
             
             for j in range(self.order[1]):
                 multiplied[i].append(self.contents[i][j] * coefficient)
-        
+         
     def get_order(self):
         return self.order
-        
+         
     def get_transpose(self): # This swaps the rows and collumbs. It's like reflecting the matrix diagonally.
         transpose = []
         
@@ -55,7 +57,7 @@ class Matrix:
             transpose.append(row)
         
         return Matrix(transpose)
-    
+     
     def get_2x2_determinant(self): # Okay, I know this is really ugly but you can only 
                                    # find determinants for square matrices, and I'm only gonna be
                                    # doing that for 2x2 and 3x3 ones so I might as well reduce the
@@ -89,7 +91,7 @@ class Matrix:
                 (self.contents[2][1] * self.contents[1][2] * self.contents[0][0]) -
                 (self.contents[2][2] * self.contents[1][0] * self.contents[0][1])
                )
-        
+          
     def get_3x3_inverse(self):
         # This is a long-winded confusing process which I hate.
 
@@ -102,8 +104,7 @@ class Matrix:
         
         # Step 2: Make a 3x3 matrix of minors:
         
-        workingContents = Matrix(
-            [
+        workingContents = [
                 [
                     Matrix([[ self.contents[1][1], self.contents[1][2] ], [ self.contents[2][1], self.contents[2][2] ]]).get_2x2_determinant(), 
                     Matrix([[ self.contents[1][0], self.contents[1][2] ], [ self.contents[2][0], self.contents[2][2] ]]).get_2x2_determinant(), 
@@ -122,7 +123,6 @@ class Matrix:
                     Matrix([[ self.contents[0][0], self.contents[0][1] ], [ self.contents[1][0], self.contents[1][1] ]]).get_2x2_determinant()
                 ]
             ]
-        )
         
         # This makes me want to kill myself. /j
         
@@ -401,8 +401,8 @@ class Abstract:
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
-class Poly(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
-    def __init__(self, vertices, colour):   # Vertices should be an array of n arrays.
+class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
+    def __init__(self, vertices = I3, colour = (0, 0, 0, 0)):   # Vertices should be an array of n arrays.
                                             # Each array is a coordinate, done in clockwise 
                                             # order if you're looking at the opaque side.
 
@@ -414,6 +414,7 @@ class Poly(Abstract): # This should be a child to an abstract which will serve a
                                             # matrices to polygons so I'll just hate myself later 
 
         self.vertices = Matrix(vertices).get_transpose()
+        self.colour = pygame.color(colour)
         
 class Camera(Abstract):
     def __init__(self, perspectiveConstant):
@@ -444,52 +445,43 @@ class Camera(Abstract):
         for i in range(3):
             projectedCoordinates.append([])
             
-def threadTest():
-        testMatrix = Matrix([[2, 1],
-                            [0, 1]])
-        for i in range(12):
-            testMatrix = testMatrix.apply(testMatrix)
-
-            
-startTime = time.time()
-        
-for i in range(200):
-    threadTest()
-print(f"Finished sequential test in {time.time() - startTime} seconds")
-
-
-if __name__ == "__main__": # I hate having to use this but otherwise the multiprocessing throws a hissy fit
-    
-    startTime = time.time()
-
-    activeProcesses = []
-    for i in range(200):
-        activeProcesses.append(multiprocessing.Process(target=threadTest))
-        activeProcesses[i].start()
-        
-    for process in activeProcesses:
-        process.start()
-        
-    for process in activeProcesses:
-        process.join()
-        
-    print(f"Finished multithreaded test in {time.time() - startTime} seconds")
-
-def numpyThreadTest():
-    testMatrix = numpy.array([[2, 1],
-                                [0, 1]])
-    
-    for i in range(12):
-        testMatrix = numpy.matmul(testMatrix, testMatrix)
-    
-startTime = time.time()
-    
-for i in range(200):
-    numpyThreadTest()
-print(f"Finished numpy test in {time.time() - startTime} seconds")
-
 # Pygame Setup - initialises the window, 
 pygame.init()
 window = pygame.display.set_mode((320, 240))
 clock = pygame.time.Clock()
 running = True
+            
+testMatrix = Matrix([[3, -1, 3.4],
+                     [0, -4.5, 1],
+                     [7, 3, 2]])
+
+testVector = Matrix([[1],
+                     [-25],
+                     [0.5]])
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            
+    startTime = time.time()
+            
+    for i in range(200):
+        testMatrix.get_3x3_inverse()
+        
+    for i in range(200):
+        testVector.add(testVector)
+
+    window.fill((255, 255, 255))
+    for i in range(200):
+        pygame.draw.polygon(window, (0, 255, 255), ((1, 1), (200, 30), (46, 55)))
+        
+    for i in range(10):
+        for j in range(10):
+            pygame.draw.rect(window, (i * j / 1.5, i* 12, j* 12), (50 + i * 16, 50 + j * 16, 16, 16))
+
+    pygame.display.flip()
+        
+    print(f"Finished frame calculation test in {time.time() - startTime} seconds. \nEquivalent to {1 / (time.time() - startTime)} Hz")
+
+    pygame.display.flip()
