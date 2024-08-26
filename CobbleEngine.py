@@ -9,10 +9,13 @@ import time
 # ---------------- MATHEMATICAL OBJECTS ----------------
 
 class Matrix:  
-    def __init__(self, contents: list): # All the functions in this class are slower than my 
-                                        # grandma's metabolism and she's dead.
-                                        
-                                        # 
+    def __init__(self, contents: list[list[float]]): # All the functions in this class are slower than my 
+                                                     # grandma's metabolism and she's dead.
+                                                     
+                                                     # Unfortunately for the poor souls who have to mark
+                                                     # and moderate this, I will not be using Numpy instead
+                                                     # bc that's not enough work!! And who needs GPU 
+                                                     # acceleration in their game engine anyway? 
                                         
         self.contents = contents # This assumes you're smart and don't need input validation. 
         
@@ -29,12 +32,13 @@ class Matrix:
     def get_contents(self):
         return self.contents
        
-    def set_contents(self, contents):
+    def set_contents(self, contents: list[list[float]]):
         self.contents = contents
         self.order = (len(contents), len(contents[0])) # Same as in __init__()
          
-    def multiply_contents(self, coefficient): # If you need to divide a matrix, you can just multiply it by the reciprocal of your coefficient.        
-                                              # Like this: Matrix.multiply_contents(1 / numberYoureDividingBy)
+    def multiply_contents(self, coefficient: float): # If you need to divide a matrix, you can just multiply 
+                                                     # it by the reciprocal of your coefficient.        
+                                                     # Like this: Matrix.multiply_contents(1 / numberYoureDividingBy)
         multiplied = []
         
         for i in range(self.order[0]):
@@ -58,16 +62,16 @@ class Matrix:
         
         return Matrix(transpose)
      
-    def get_2x2_determinant(self): # Okay, I know this is really ugly but you can only 
-                                   # find determinants for square matrices, and I'm only gonna be
+    def get_2x2_determinant(self): # I know this is really ugly but you can only find 
+                                   # determinants for square matrices, and I'm only gonna be
                                    # doing that for 2x2 and 3x3 ones so I might as well reduce the
-                                   # conditionals.
+                                   # conditionals and make order-specific functions.
         return (self.contents[0][0] * self.contents[1][1]) - (self.contents[0][1] * self.contents[1][0])
     
     def get_2x2_inverse(self): # This just uses the set formula.
         
-                               # [ [ a, b ],           =     [ [ d, -b ],
-                               #   [ c, d ] ] ^ -1             [ -c, a ] ]
+                               # [ [ a, b ],           =  1 / Det  *  [ [ d, -b ],
+                               #   [ c, d ] ] ^ -1                      [ -c, a ] ]
         det = self.get_2x2_determinant()
         
         inverse = [
@@ -124,7 +128,7 @@ class Matrix:
                 ]
             ]
         
-        # This makes me want to kill myself. /j
+        # That was so hard!
         
         # Basically, for each minor we're making a 2x2 matrix out of all the elements that 
         # *aren't in the same row or collumb* as the element we're finding a minor for.
@@ -231,7 +235,7 @@ class Matrix:
         # functions I'll get my dreaded comments out again.
         
     def add(self, matrixToAddIdk):
-        if self.order != matrixToAddIdk.order:
+        if self.order != matrixToAddIdk.get_order():
             print("These have different orders dumbass you can't add them")
             return None
         
@@ -250,7 +254,7 @@ class Matrix:
     def apply(self, right): # Matrix multiplication isn't commutative, so we have one
                             # on the left, and one on the right.
                 
-                            # Self is on the left. Can you guess where Right is?
+                            # "self" is on the left. Can you guess where "right" is?
 
                             # A: Also on the left
                             # B: Idk
@@ -310,19 +314,27 @@ ORIGIN = Matrix([[0],
 
 
 
-
 # ---------------- ABSTRACTS ----------------
 
 class Abstract:
-    def __init__(self, location = ORIGIN, distortion = I3, parent = None, children = []):
+    def __init__(self, name: str, location, distortion, tags): # I know having overrides for __init__ is really bad,
+                                                         # but when I tried using default values in the parameters
+                                                         # they ended up being shared accross every abstract 💀
+        self.name = name
+        
         self.location = location
-        self.distortion = distortion
-        # Right, I know you're not going to be happy with this but the Distortion
-        # parameter handles both orientation AND scale. Why? Because quaternions
-        # scare me and God FORBID I actually research anything new for my research 
-        # project
-        self.parent = parent
-        self.children = children
+        self.distortion = distortion 
+        
+        self.parent = None
+        self.children = []
+        
+        self.tags = tags
+        
+    def get_name(self):
+        return self.name
+    
+    def set_name(self, name: str):
+        self.name = name
         
     def get_location(self):
         return self.location
@@ -336,49 +348,93 @@ class Abstract:
     def set_distortion(self, distortion):
         self.distortion = distortion
         
+    def get_tags(self):
+        return self.tags
+    
+    def add_tag(self, tag: str):
+        self.tags.append(tag)
+    
+    def remove_tag(self, tag: str):
+        self.tags.remove(tag)
+        
+    def check_for_tag(self, tag: str):
+        return tag in self.tags
+        
+        
+    # Heirachy functions
+        
     def get_parent(self):
         return self.parent
     
-    def set_parent(self, parent): # Alter all of the reparenting functions later to 
-        if parent:                # preserve world-space positions
-            parent.remove_child(self)
-        self.parent = parent
+    def set_parent(self, newParent): # Alter all of the reparenting functions later to 
+        if self.parent:                # preserve world-space positions
+            self.parent.children.remove(self)
+        self.parent = newParent
             
-        parent.add_child(self)
+        if not self in newParent.children:
+            newParent.children.append(self)
         
     def get_children(self):
         return self.children
     
-    def add_child(self, child):
-        child.set_parent(self)
-        self.children.append(child)
+    def add_child(self, newChild):
+        if newChild.parent:
+            newChild.parent.children.remove(newChild)
+        newChild.parent = self
+        
+        if not newChild in self.children:
+            self.children.append(newChild)
         
     def remove_child(self, child):
-        child.set_parent(self.parent)
+        if self.parent:
+            child.parent = self.parent
+        else:
+            return
+            
         self.children.remove(child)
-        self.parent.add_child(child)
 
-    def delete_self(self):
-        for child in self.children:
-            child.set_parent(self.parent)
+        self.parent.children.append(child)
 
-        self.parent.remove_child(self)  
-        
-        del self
+    def kill_self(self):
+        if self.parent:
+            for child in self.children:
+                child.parent = self.parent
 
-    def delete_self_and_children(self):
+            self.parent.remove_child(self)  
+            
+            del self
+        else:
+            print("Why tf are you trying to delete the origin? Not cool man")
+
+    def kill_self_and_children(self):
         if self.children:
-            for child in children:
+            for child in self.children:
                 child.delete_self_and_children()
         
-        self.parent.remove_child(self)
+        if self.parent:
+            self.parent.children.remove(self)
         
         del self
+
+
+    # Transform functions
+    
+    def get_global_location(self):
+        if self.parent:
+            parentLocation = self.parent.get_global_location()
+            return self.distortion.apply(parentLocation.add(self.location))
+        else:
+            return self.distortion.apply(self.location)
+        
+    def get_global_distortion(self):
+        if self.parent:
+            parentDistortion = self.parent.get_global_distortion()
+            return self.distortion.apply(parentDistortion)
+        else:
+            return self.distortion
 
     def translate_local(self, vector):
         self.location = self.location.add(vector)
-        
-    # Add world space translations and distortions later
 
     def rotate_euler_radians(self, x, y, z): # This follows the order yxz
         sinx = math.sin(x)
@@ -390,23 +446,29 @@ class Abstract:
         
         self.distortion = Matrix([[cosz, -sinz, 0],
                                   [sinz, cosz, 0],
-                                  [0, 0, 1]]).apply(Matrix([[1, 0, 0],
-                                                            [0, cosx, -sinx],
-                                                            [0, sinx, cosx]])).apply(Matrix([[cosy, 0, siny],
-                                                                                            [0, 1, 0],
-                                                                                            [-cosy, 0, cosy]])).apply(self.distortion)
-    
-    
+                                  [0, 0, 1]]).apply(
+                                      
+                                  Matrix([[1, 0, 0],
+                                          [0, cosx, -sinx],
+                                          [0, sinx, cosx]])).apply(
+                                      
+                                  Matrix([[cosy, 0, siny],
+                                          [0, 1, 0],
+                                          [-cosy, 0, cosy]])).apply(self.distortion)
+
     
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
-    def __init__(self, vertices = I3, colour = (0, 0, 0, 0)):   # Vertices should be an array of n arrays.
+    def __init__(self, vertices, albedo):   
+        super().__init__("Tri", self.parent.location, self.parent.distortion, ["Tri"])
+        
+        # Vertices should be an array of 3 arrays.
                                             # Each array is a coordinate, done in clockwise 
                                             # order if you're looking at the opaque side.
 
-                                            # This gets converted to a 3xn matrix with each
+                                            # This gets converted to a 3x3 matrix with each
                                             # collumb being a coordinate.
 
                                             # Is this really annoying? Yes!
@@ -414,36 +476,20 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
                                             # matrices to polygons so I'll just hate myself later 
 
         self.vertices = Matrix(vertices).get_transpose()
-        self.colour = pygame.color(colour)
+        self.albedo = pygame.color(albedo)
+        
+    def get_vertices(self):
+        return self.vertices
+    
+    def set_vertices(self, vertices):
+        self.vertices = vertices
         
 class Camera(Abstract):
-    def __init__(self, perspectiveConstant):
+    def __init__(self, name, location, distortion, perspectiveConstant):
+        super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, tri):
-        relativeVertices = self.distortion.get_3x3_inverse().apply(
-            tri.vertices.add(Matrix([[-self.location[0][0], -self.location[0][0], -self.location[0][0]],
-                                     [-self.location[1][0], -self.location[1][0], -self.location[1][0]],
-                                     [-self.location[2][0], -self.location[2][0], -self.location[2][0]]]))).get_contents()
-
-            # That was horrible! 
-
-            # Lets look at that step-by-step:
-
-            # First, we subtract the camera's location from the location of each vertex.
-            # This gives us their postiions relative to *the camera's location* 
-            # (not relative to the camera!!!!!)
-
-            # Next, we apply the *inverse* of the camera's distortion to the matrix we
-            # got in the last step.
-            # This gives us all the coordinates properly relative to the camera.
-
-            # Then, we get the contents of the result so we can use the values in code.
-
-        projectedCoordinates = []
-
-        for i in range(3):
-            projectedCoordinates.append([])
+    
             
 # Pygame Setup - initialises the window, 
 pygame.init()
@@ -459,17 +505,42 @@ testVector = Matrix([[1],
                      [-25],
                      [0.5]])
 
-while running:
+
+origin = Abstract("origin", Matrix([[1], # Abstract 1
+                          [1],
+                          [1]]), Matrix([[0, 0, 1],
+                                         [0, 1, 0],
+                                         [-1, 0, 0]]), [])
+
+childAbstract = Abstract("child", Matrix([[1], # Abstract 2
+                                          [1],
+                                          [1]]), Matrix([[0, 0, 1],
+                                                         [0, 1, 0],
+                                                         [-1, 0, 0]]), [])
+
+origin.add_child(childAbstract)
+
+
+
+print(childAbstract.get_global_location().get_contents())
+
+origin.set_distortion(Matrix([[0, 0, 1],
+                              [0, 1, 0],
+                              [-1, 0, 0]]).apply(origin.get_distortion()))
+
+print(childAbstract.get_global_location().get_contents())
+
+'''while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             
     startTime = time.time()
             
-    for i in range(200):
-        testMatrix.get_3x3_inverse()
+    for i in range(800):
+        childAbstract.get_global_location()
         
-    for i in range(200):
+    for i in range(800):
         testVector.add(testVector)
 
     window.fill((255, 255, 255))
@@ -484,4 +555,4 @@ while running:
         
     print(f"Finished frame calculation test in {time.time() - startTime} seconds. \nEquivalent to {1 / (time.time() - startTime)} Hz")
 
-    pygame.display.flip()
+    pygame.display.flip()'''
