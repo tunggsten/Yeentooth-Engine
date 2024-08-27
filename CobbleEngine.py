@@ -100,14 +100,12 @@ class Matrix:
                )
           
     def get_3x3_inverse(self):
-        print(f"Inverting the matrix {self.get_contents()}")
         # This is a long-winded confusing process which I hate.
 
         # Here's what we need to do:
         
         # Step 1: Find the determinant.
         det = self.get_3x3_determinant()
-        print(f"Determinant: {det}")
         
         # That wasn't so hard!
         
@@ -132,8 +130,6 @@ class Matrix:
                     Matrix([[ self.contents[0][0], self.contents[0][1] ], [ self.contents[1][0], self.contents[1][1] ]]).get_2x2_determinant()
                 ]
             ]
-        
-        print(f"Minors: {workingContents}")
         
         # That was so hard!
         
@@ -200,8 +196,6 @@ class Matrix:
         workingContents[1][2] = 0 - workingContents[1][2]
         workingContents[2][1] = 0 - workingContents[2][1]
         
-        print(f"Cofactors: {workingContents}")
-        
         # Luckily, this step isn't as carcinogenic to program as the last step.
         # We're just flipping the signs of some of the elements in a checkerboard pattern.
         
@@ -234,8 +228,6 @@ class Matrix:
                 row.append(workingContents[j][i])
             transposedCofactors.append(row)
         
-        print(f"Transposed cofactors: {transposedCofactors}")
-        
         try:
             return Matrix(transposedCofactors).multiply_contents(1 / det)
         except:
@@ -266,7 +258,7 @@ class Matrix:
                                              # but it's cumbersome manually negating a matrix every time you
                                              # want to subtract it, so this should be a little bit faster
         if self.order != matrixToSubtractIdk.get_order():
-            print("These have different orders dumbass you can't add them")
+            print("These have different orders dumbass you can't subtract them")
             return None
         
         contentsToSubtract = matrixToSubtractIdk.get_contents()
@@ -458,7 +450,7 @@ class Abstract:
             if child.__class__ == type:
                 found.append(child)
                 
-            found += child.get_substracts_of_type(tag)
+            found += child.get_substracts_of_type(type)
             
         return found
         
@@ -534,16 +526,15 @@ class Abstract:
         
         
     def get_objective_distortion(self):
-        return self.ojbectiveDistortion
+        return self.objectiveDistortion
     
     def set_objective_distortion(self, distortion):
-        self.ojbectiveDistortion = distortion
+        self.objectiveDistortion = distortion
         
     
     
     def get_relative_location(self):
         if self.parent:
-            print(self.parent.objectiveDistortion.get_contents())
             return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveLocation.subtract(self.parent.objectiveLocation))
         else:
             return self.objectiveLocation
@@ -554,17 +545,15 @@ class Abstract:
         else:
             self.objectiveLocation = location
             
-            
-            
     def get_relative_distortion(self):
         if self.parent:
             return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveDistortion)
     
     def set_relative_distortion(self, distortion):
         if self.parent:
-            self.ojbectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
+            self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
         else:
-            self.ojbectiveDistortion = distortion
+            self.objectiveDistortion = distortion
         
         
 
@@ -579,7 +568,7 @@ class Abstract:
         sinz = math.sin(z)
         cosz = math.cos(z)
         
-        self.ojbectiveDistortion = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
+        self.set_relative_distortion(Matrix([[cosz, -sinz, 0], # This is wrong, fix later
                                   [sinz, cosz, 0],
                                   [0, 0, 1]]).apply(
                                       
@@ -589,15 +578,25 @@ class Abstract:
                               
                           Matrix([[cosy, 0, siny],
                                   [0, 1, 0],
-                                  [-cosy, 0, cosy]])).apply(self.get_relative_distortion())
+                                  [-cosy, 0, cosy]])).apply(self.get_relative_distortion()))
+                            
+# Important default abstracts:
+
+ROOT = Abstract("Root")
 
     
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
+# Pygame Setup - initialises the window, 
+pygame.init()
+window = pygame.display.set_mode((320, 240))
+clock = pygame.time.Clock()
+running = True
+
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
     def __init__(self, vertices, albedo, lit: bool):   
-        super().__init__("Tri", self.parent.location, self.parent.distortion, ["Tri"])
+        super().__init__("Tri", ORIGIN, I3, ["Tri"])
         
         # Vertices should be an array of 3 arrays.
                                             # Each array is a coordinate, done in clockwise 
@@ -611,7 +610,7 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
                                             # matrices to polygons so I'll just hate myself later 
 
         self.vertices = Matrix(vertices).get_transpose()
-        self.albedo = pygame.color(albedo)
+        self.albedo = albedo
         self.lit = lit
         
     def get_vertices(self):
@@ -625,27 +624,41 @@ class Camera(Abstract):
         super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, inversion, tri):
-        triObjectiveVertices = inversion.apply(tri.get_distortion().apply(tri.get_vertices()).subtract(self.objectiveLocation)).get_contents()
+    def project_tri(self, locationMatrix, inversion, tri):
+        triRelativeVertices = inversion.apply(
+            tri.get_objective_distortion().apply(tri.get_vertices()).subtract(locationMatrix)
+            ).get_contents()
         
-        print(triObjectiveVertices)
+        if triRelativeVertices[2][0] > 0 and triRelativeVertices[2][1] > 0 and triRelativeVertices[2][2] > 0:
+            screenSpaceCoordinates = (
+                (triRelativeVertices[0][0] / (triRelativeVertices[2][0] * self.perspectiveConstant) + 160, 
+                triRelativeVertices[1][0] / (triRelativeVertices[2][0] * self.perspectiveConstant) + 120),
+                
+                (triRelativeVertices[0][1] / (triRelativeVertices[2][1] * self.perspectiveConstant) + 160, 
+                triRelativeVertices[1][1] / (triRelativeVertices[2][1] * self.perspectiveConstant) + 120),
+                
+                (triRelativeVertices[0][2] / (triRelativeVertices[2][2] * self.perspectiveConstant) + 160, 
+                triRelativeVertices[1][2] / (triRelativeVertices[2][2] * self.perspectiveConstant) + 120)
+            )
+            
+            pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
+        
+        
         
     def rasterize(self):
-        tris = origin.get_substracts_of_type(Tri)
-        print(tris)
+        tris = ROOT.get_substracts_of_type(Tri)
         
         inversion = self.objectiveDistortion.get_3x3_inverse()
+        location = self.objectiveLocation.get_contents()
+        locationMatrix = Matrix([[location[0][0], location[0][0], location[0][0]],
+                                 [location[1][0], location[1][0], location[1][0]],
+                                 [location[2][0], location[2][0], location[2][0]]])
         
         for tri in tris:
-            self.project_tri(tri)
+            self.project_tri(locationMatrix, inversion, tri)
         
     
-            
-# Pygame Setup - initialises the window, 
-pygame.init()
-window = pygame.display.set_mode((320, 240))
-clock = pygame.time.Clock()
-running = True
+
   
 '''          
 testMatrix = Matrix([[3, -1, 3.4],
@@ -678,32 +691,73 @@ print(origin.get_substracts_with_tag("Rose toy"))'''
 
 origin = Abstract("Origin")
 
+ROOT.add_child(origin)
+
 camera = Camera("Main camera", Matrix([[0],
                                        [0],
-                                       [-4]]), I3, 1)
-origin.add_child(Camera)
+                                       [-4]]), I3, 0.005)
+origin.add_child(camera)
+
+movementSpeed = 1.5
 
 mesh = Abstract("Mesh")
+origin.add_child(mesh)
 
-for i in range(5):
-    mesh.add_child(Tri([[random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],
-                        [random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],
-                        [random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],]))
+for i in range(50):
+    n = Tri([[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)],
+             [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)],
+             [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)]],
+                        
+            (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
+            
+            True)
+    mesh.add_child(n)
+    
+frameDelta = 0
 
 while running:
-    for event in pygame.event.get():
+    startTime = time.time()
+    
+    events = pygame.event.get()
+    
+    for event in events:
         if event.type == pygame.QUIT:
             running = False
             
-    startTime = time.time()
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_w]:
+        camera.translate_objective(Matrix([[0],
+                                    [0],
+                                    [movementSpeed * frameDelta]]))
+    elif keys[pygame.K_s]:
+        camera.translate_objective(Matrix([[0],
+                                    [0],
+                                    [-movementSpeed * frameDelta]]))
+        
+    if keys[pygame.K_a]:
+        camera.translate_objective(Matrix([[-movementSpeed * frameDelta],
+                                    [0],
+                                    [0]]))
+    elif keys[pygame.K_d]:
+        camera.translate_objective(Matrix([[movementSpeed * frameDelta],
+                                    [0],
+                                    [0]]))
+    
+    if keys[pygame.K_RIGHT]:
+        camera.rotate_euler_radians(0, 0.3 * frameDelta, 0)
+    elif keys[pygame.K_LEFT]:
+        camera.rotate_euler_radians(0, -0.3 * frameDelta, 0)
 
     window.fill((255, 255, 255))
-    
+
     camera.rasterize()
     
-    for i in range(200):
-        pygame.draw.polygon(window, (0, 255, 255), ((1, 1), (200, 30), (46, 55)))
+    print(mesh.get_relative_distortion().get_contents())
         
-    print(f"Finished frame calculation test in {time.time() - startTime} seconds. \nEquivalent to {1 / (time.time() - startTime)} Hz")
-
+    frameDelta = time.time() - startTime
+    try:
+        print(f"Finished frame calculation test in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz")
+    except:
+        print("Very fast")
+        
     pygame.display.flip()
