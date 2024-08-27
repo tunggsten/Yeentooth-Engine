@@ -567,18 +567,19 @@ class Abstract:
         cosy = math.cos(y)
         sinz = math.sin(z)
         cosz = math.cos(z)
+
+        print(sinx, cosx, siny, cosy, sinz, cosz)
         
         self.set_relative_distortion(Matrix([[cosz, -sinz, 0], # This is wrong, fix later
-                                  [sinz, cosz, 0],
-                                  [0, 0, 1]]).apply(
+                                             [sinz, cosz, 0],
+                                             [0, 0, 1]]).apply(
                                       
-                          Matrix([[1, 0, 0],
-                                  [0, cosx, -sinx],
-                                  [0, sinx, cosx]])).apply(
-                              
-                          Matrix([[cosy, 0, siny],
-                                  [0, 1, 0],
-                                  [-cosy, 0, cosy]])).apply(self.get_relative_distortion()))
+                                     Matrix([[1, 0, 0],
+                                             [0, cosx, -sinx],
+                                             [0, sinx, cosx]])).apply(
+                                     Matrix([[cosy, 0, siny],
+                                             [0, 1, 0],
+                                             [-siny, 0, cosy]])).apply(self.get_relative_distortion()))
                             
 # Important default abstracts:
 
@@ -624,21 +625,26 @@ class Camera(Abstract):
         super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, locationMatrix, inversion, tri):
-        triRelativeVertices = inversion.apply(
-            tri.get_objective_distortion().apply(tri.get_vertices()).subtract(locationMatrix)
-            ).get_contents()
+    def project_tri(self, cameraLocationMatrix, inversion, tri):
+        triLocation = tri.get_objective_location().get_contents()
+        triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],
+                                 [triLocation[1][0], triLocation[1][0], triLocation[1][0]],
+                                 [triLocation[2][0], triLocation[2][0], triLocation[2][0]]])
+
+        triObjectiveVertices = tri.get_objective_distortion().apply(tri.get_vertices()).add(triLocationMatrix)
         
-        if triRelativeVertices[2][0] > 0 and triRelativeVertices[2][1] > 0 and triRelativeVertices[2][2] > 0:
+        triCameraVertices = inversion.apply(triObjectiveVertices.subtract(cameraLocationMatrix)).get_contents()
+        
+        if triCameraVertices[2][0] > 0 and triCameraVertices[2][1] > 0 and triCameraVertices[2][2] > 0:
             screenSpaceCoordinates = (
-                (triRelativeVertices[0][0] / (triRelativeVertices[2][0] * self.perspectiveConstant) + 160, 
-                triRelativeVertices[1][0] / (triRelativeVertices[2][0] * self.perspectiveConstant) + 120),
+                (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 160, 
+                triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 120),
                 
-                (triRelativeVertices[0][1] / (triRelativeVertices[2][1] * self.perspectiveConstant) + 160, 
-                triRelativeVertices[1][1] / (triRelativeVertices[2][1] * self.perspectiveConstant) + 120),
+                (triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 160, 
+                triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 120),
                 
-                (triRelativeVertices[0][2] / (triRelativeVertices[2][2] * self.perspectiveConstant) + 160, 
-                triRelativeVertices[1][2] / (triRelativeVertices[2][2] * self.perspectiveConstant) + 120)
+                (triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 160, 
+                triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 120)
             )
             
             pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
@@ -700,7 +706,9 @@ origin.add_child(camera)
 
 movementSpeed = 1.5
 
-mesh = Abstract("Mesh")
+mesh = Abstract("Mesh", ORIGIN, Matrix([[2, 0, 0],
+                                        [0, 1, 0],
+                                        [0, 0, 1]]))
 origin.add_child(mesh)
 
 for i in range(50):
@@ -744,17 +752,19 @@ while running:
                                     [0]]))
     
     if keys[pygame.K_RIGHT]:
-        camera.rotate_euler_radians(0, 0.3 * frameDelta, 0)
+        camera.rotate_euler_radians(0, 1 * frameDelta, 0)
     elif keys[pygame.K_LEFT]:
-        camera.rotate_euler_radians(0, -0.3 * frameDelta, 0)
+        camera.rotate_euler_radians(0, -1 * frameDelta, 0)
+
+    
+    mesh.rotate_euler_radians(1 * frameDelta, 1 * frameDelta, 0)
 
     window.fill((255, 255, 255))
 
     camera.rasterize()
-    
-    print(mesh.get_relative_distortion().get_contents())
         
     frameDelta = time.time() - startTime
+
     try:
         print(f"Finished frame calculation test in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz")
     except:
