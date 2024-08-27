@@ -2,6 +2,7 @@ import pygame
 from tkinter import *
 
 import math
+import random
 import time
 
 
@@ -46,6 +47,8 @@ class Matrix:
             
             for j in range(self.order[1]):
                 multiplied[i].append(self.contents[i][j] * coefficient)
+                
+        return Matrix(multiplied)
          
     def get_order(self):
         return self.order
@@ -97,12 +100,14 @@ class Matrix:
                )
           
     def get_3x3_inverse(self):
+        print(f"Inverting the matrix {self.get_contents()}")
         # This is a long-winded confusing process which I hate.
 
         # Here's what we need to do:
         
         # Step 1: Find the determinant.
         det = self.get_3x3_determinant()
+        print(f"Determinant: {det}")
         
         # That wasn't so hard!
         
@@ -127,6 +132,8 @@ class Matrix:
                     Matrix([[ self.contents[0][0], self.contents[0][1] ], [ self.contents[1][0], self.contents[1][1] ]]).get_2x2_determinant()
                 ]
             ]
+        
+        print(f"Minors: {workingContents}")
         
         # That was so hard!
         
@@ -193,6 +200,8 @@ class Matrix:
         workingContents[1][2] = 0 - workingContents[1][2]
         workingContents[2][1] = 0 - workingContents[2][1]
         
+        print(f"Cofactors: {workingContents}")
+        
         # Luckily, this step isn't as carcinogenic to program as the last step.
         # We're just flipping the signs of some of the elements in a checkerboard pattern.
         
@@ -225,6 +234,8 @@ class Matrix:
                 row.append(workingContents[j][i])
             transposedCofactors.append(row)
         
+        print(f"Transposed cofactors: {transposedCofactors}")
+        
         try:
             return Matrix(transposedCofactors).multiply_contents(1 / det)
         except:
@@ -248,6 +259,25 @@ class Matrix:
             
             for collumb in range(self.order[1]):
                 result[row].append(self.contents[row][collumb] + contentsToAdd[row][collumb])
+        
+        return Matrix(result)
+    
+    def subtract(self, matrixToSubtractIdk): # This looks completely useless and honestly I thought the same,
+                                             # but it's cumbersome manually negating a matrix every time you
+                                             # want to subtract it, so this should be a little bit faster
+        if self.order != matrixToSubtractIdk.get_order():
+            print("These have different orders dumbass you can't add them")
+            return None
+        
+        contentsToSubtract = matrixToSubtractIdk.get_contents()
+        
+        result = []
+        
+        for row in range(self.order[0]):
+            result.append([])
+            
+            for collumb in range(self.order[1]):
+                result[row].append(self.contents[row][collumb] - contentsToSubtract[row][collumb])
         
         return Matrix(result)
 
@@ -317,18 +347,75 @@ ORIGIN = Matrix([[0],
 # ---------------- ABSTRACTS ----------------
 
 class Abstract:
-    def __init__(self, name: str, location, distortion, tags): # I know having overrides for __init__ is really bad,
-                                                         # but when I tried using default values in the parameters
-                                                         # they ended up being shared accross every abstract 💀
-        self.name = name
+    def __init__(self, 
+                 
+                 name:str=None,
+                 
+                 location:Matrix=None, 
+                 
+                 distortion:Matrix=None, 
+                 
+                 tags:list[str]=None,
+                 
+                 parent=None, 
+                 
+                 children=None, 
+                 
+                 script=None): # I'm well aware this is clapped. 
         
-        self.location = location
-        self.distortion = distortion 
+                             # Unfortunately for people unlucky enough to see this, default values in Python
+                             # are created at the definition of the function, instead of when it's called. 
+                
+                             # This means if I assign default values in the parameter list, EVERY abstract 
+                             # that uses those default values will then share those parameters, even when I 
+                             # change them.
+                             
+                             # Guess how long it took to find that out while debugging.
         
-        self.parent = None
-        self.children = []
+        self.name = "Abstract" if not name else name # I hate If Expressions too if that's any consolation
         
-        self.tags = tags
+                                                     # Sorry, I mean
+                                                     
+                                                     # if that's any consolation:
+                                                     #     I hate If Expressions too
+        
+        self.parent = parent if parent else None
+        self.children = children if children else []
+        
+        if parent:
+            self.objectiveLocation = self.parent.objectiveLocation.add(self.parent.objectiveDistortion.apply(location if location else ORIGIN))
+            self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion if distortion else I3) 
+            
+            # That looks confusing but it just generates the appropriate objective
+            # location such that it's at the position you entered relative to its
+            # superstract.
+            
+            # If you're wondering why I don't just store the relative locations, it's
+            # becasue I tried it and it was slow.
+                
+            # In every raster cycle, you need to find the positions of every vertex
+            # relative to the camera. With objective coordinates being stored, you
+            # just have to read those from memory and compare them. However, with
+            # relative coordinates I had to make a recursive function which
+            # would spend four fucking years every frame traversing all the way up
+            # the scene tree to the objective origin doing matrix applications for
+            # each link.
+            
+            # While storing it like this makes it harder to find local coordinates,
+            # you only need to compare the current abstract with its superstract
+            # to find them, whereas finding objective coordinates with stored 
+            # coordinates in local space requires analysing the entire scene tree.
+            
+            
+        else:
+            self.objectiveLocation =  location if location else ORIGIN
+            self.objectiveDistortion = distortion if distortion else I3
+
+        self.script = None # Implement this later
+        
+        self.tags = tags if tags else []
+        
+        
         
     def get_name(self):
         return self.name
@@ -336,29 +423,44 @@ class Abstract:
     def set_name(self, name: str):
         self.name = name
         
-    def get_location(self):
-        return self.location
-    
-    def set_location(self, location):
-        self.location = location
         
-    def get_distortion(self):
-        return self.distortion
-    
-    def set_distortion(self, distortion):
-        self.distortion = distortion
         
     def get_tags(self):
         return self.tags
     
-    def add_tag(self, tag: str):
+    def add_tag(self, tag:str):
         self.tags.append(tag)
     
-    def remove_tag(self, tag: str):
+    def remove_tag(self, tag:str):
         self.tags.remove(tag)
         
-    def check_for_tag(self, tag: str):
+    def check_for_tag(self, tag:str):
         return tag in self.tags
+    
+    def get_substracts_with_tag(self, tag:str):
+        found = []
+        for child in self.children:
+            if child.check_for_tag(tag):
+                found.append(child)
+                
+            found += child.get_substracts_with_tag(tag)
+            
+        return found
+        
+    
+    
+    def get_type(self):
+        return self.__class__
+    
+    def get_substracts_of_type(self, type):
+        found = []
+        for child in self.children:
+            if child.__class__ == type:
+                found.append(child)
+                
+            found += child.get_substracts_of_type(tag)
+            
+        return found
         
         
     # Heirachy functions
@@ -366,13 +468,15 @@ class Abstract:
     def get_parent(self):
         return self.parent
     
-    def set_parent(self, newParent): # Alter all of the reparenting functions later to 
-        if self.parent:                # preserve world-space positions
+    def set_parent(self, newParent):
+        if self.parent:
             self.parent.children.remove(self)
         self.parent = newParent
             
         if not self in newParent.children:
             newParent.children.append(self)
+        
+        
         
     def get_children(self):
         return self.children
@@ -394,8 +498,10 @@ class Abstract:
         self.children.remove(child)
 
         self.parent.children.append(child)
+        
+        
 
-    def kill_self(self):
+    def kill_self(self): # This is figurative and does not need to be shown to Pastoral
         if self.parent:
             for child in self.children:
                 child.parent = self.parent
@@ -406,7 +512,7 @@ class Abstract:
         else:
             print("Why tf are you trying to delete the origin? Not cool man")
 
-    def kill_self_and_children(self):
+    def kill_self_and_children(self): # Neither does this
         if self.children:
             for child in self.children:
                 child.delete_self_and_children()
@@ -418,23 +524,52 @@ class Abstract:
 
 
     # Transform functions
-    
-    def get_global_location(self):
-        if self.parent:
-            parentLocation = self.parent.get_global_location()
-            return self.distortion.apply(parentLocation.add(self.location))
-        else:
-            return self.distortion.apply(self.location)
         
-    def get_global_distortion(self):
+    def get_objective_location(self):
+        return self.objectiveLocation
+    
+    def set_objective_location(self, location):
+        self.objectiveLocation = location
+        
+        
+        
+    def get_objective_distortion(self):
+        return self.ojbectiveDistortion
+    
+    def set_objective_distortion(self, distortion):
+        self.ojbectiveDistortion = distortion
+        
+    
+    
+    def get_relative_location(self):
         if self.parent:
-            parentDistortion = self.parent.get_global_distortion()
-            return self.distortion.apply(parentDistortion)
+            print(self.parent.objectiveDistortion.get_contents())
+            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveLocation.subtract(self.parent.objectiveLocation))
         else:
-            return self.distortion
+            return self.objectiveLocation
+        
+    def set_relative_location(self, location):
+        if self.parent:
+            self.objectiveLocation = self.parent.objectiveLocation.add(self.parent.objectiveDistortion.apply(location))
+        else:
+            self.objectiveLocation = location
+            
+            
+            
+    def get_relative_distortion(self):
+        if self.parent:
+            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveDistortion)
+    
+    def set_relative_distortion(self, distortion):
+        if self.parent:
+            self.ojbectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
+        else:
+            self.ojbectiveDistortion = distortion
+        
+        
 
-    def translate_local(self, vector):
-        self.location = self.location.add(vector)
+    def translate_objective(self, vector):
+        self.objectiveLocation = self.objectiveLocation.add(vector)
 
     def rotate_euler_radians(self, x, y, z): # This follows the order yxz
         sinx = math.sin(x)
@@ -444,24 +579,24 @@ class Abstract:
         sinz = math.sin(z)
         cosz = math.cos(z)
         
-        self.distortion = Matrix([[cosz, -sinz, 0],
+        self.ojbectiveDistortion = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
                                   [sinz, cosz, 0],
                                   [0, 0, 1]]).apply(
                                       
-                                  Matrix([[1, 0, 0],
-                                          [0, cosx, -sinx],
-                                          [0, sinx, cosx]])).apply(
-                                      
-                                  Matrix([[cosy, 0, siny],
-                                          [0, 1, 0],
-                                          [-cosy, 0, cosy]])).apply(self.distortion)
+                          Matrix([[1, 0, 0],
+                                  [0, cosx, -sinx],
+                                  [0, sinx, cosx]])).apply(
+                              
+                          Matrix([[cosy, 0, siny],
+                                  [0, 1, 0],
+                                  [-cosy, 0, cosy]])).apply(self.get_relative_distortion())
 
     
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
-    def __init__(self, vertices, albedo):   
+    def __init__(self, vertices, albedo, lit: bool):   
         super().__init__("Tri", self.parent.location, self.parent.distortion, ["Tri"])
         
         # Vertices should be an array of 3 arrays.
@@ -477,6 +612,7 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
 
         self.vertices = Matrix(vertices).get_transpose()
         self.albedo = pygame.color(albedo)
+        self.lit = lit
         
     def get_vertices(self):
         return self.vertices
@@ -489,6 +625,20 @@ class Camera(Abstract):
         super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
+    def project_tri(self, inversion, tri):
+        triObjectiveVertices = inversion.apply(tri.get_distortion().apply(tri.get_vertices()).subtract(self.objectiveLocation)).get_contents()
+        
+        print(triObjectiveVertices)
+        
+    def rasterize(self):
+        tris = origin.get_substracts_of_type(Tri)
+        print(tris)
+        
+        inversion = self.objectiveDistortion.get_3x3_inverse()
+        
+        for tri in tris:
+            self.project_tri(tri)
+        
     
             
 # Pygame Setup - initialises the window, 
@@ -496,7 +646,8 @@ pygame.init()
 window = pygame.display.set_mode((320, 240))
 clock = pygame.time.Clock()
 running = True
-            
+  
+'''          
 testMatrix = Matrix([[3, -1, 3.4],
                      [0, -4.5, 1],
                      [7, 3, 2]])
@@ -510,49 +661,49 @@ origin = Abstract("origin", Matrix([[1], # Abstract 1
                           [1],
                           [1]]), Matrix([[0, 0, 1],
                                          [0, 1, 0],
-                                         [-1, 0, 0]]), [])
+                                         [-1, 0, 0]]))
 
-childAbstract = Abstract("child", Matrix([[1], # Abstract 2
-                                          [1],
-                                          [1]]), Matrix([[0, 0, 1],
-                                                         [0, 1, 0],
-                                                         [-1, 0, 0]]), [])
+childAbstract = Abstract(None, None, None, ["Rose toy"])
+
+childChildAbstract = Abstract("childChild", Matrix([[1], # Abstract 2
+                                                    [1],
+                                                    [1]]), Matrix([[1, 0, 0],
+                                                                   [0, 2, 0],
+                                                                   [0, 0, 1]]), ["Rose toy"])
 
 origin.add_child(childAbstract)
+childAbstract.add_child(childChildAbstract)
 
+print(origin.get_substracts_with_tag("Rose toy"))'''
 
+origin = Abstract("Origin")
 
-print(childAbstract.get_global_location().get_contents())
+camera = Camera("Main camera", Matrix([[0],
+                                       [0],
+                                       [-4]]), I3, 1)
+origin.add_child(Camera)
 
-origin.set_distortion(Matrix([[0, 0, 1],
-                              [0, 1, 0],
-                              [-1, 0, 0]]).apply(origin.get_distortion()))
+mesh = Abstract("Mesh")
 
-print(childAbstract.get_global_location().get_contents())
+for i in range(5):
+    mesh.add_child(Tri([[random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],
+                        [random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],
+                        [random.randint(-1, 1), random.randint(-1, 1), random.randint(-1, 1)],]))
 
-'''while running:
+while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             
     startTime = time.time()
-            
-    for i in range(800):
-        childAbstract.get_global_location()
-        
-    for i in range(800):
-        testVector.add(testVector)
 
     window.fill((255, 255, 255))
+    
+    camera.rasterize()
+    
     for i in range(200):
         pygame.draw.polygon(window, (0, 255, 255), ((1, 1), (200, 30), (46, 55)))
         
-    for i in range(10):
-        for j in range(10):
-            pygame.draw.rect(window, (i * j / 1.5, i* 12, j* 12), (50 + i * 16, 50 + j * 16, 16, 16))
-
-    pygame.display.flip()
-        
     print(f"Finished frame calculation test in {time.time() - startTime} seconds. \nEquivalent to {1 / (time.time() - startTime)} Hz")
 
-    pygame.display.flip()'''
+    pygame.display.flip()
