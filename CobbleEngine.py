@@ -508,10 +508,10 @@ class Abstract:
         else:
             print("Why tf are you trying to delete the origin? Not cool man")
 
-    def kill_self_and_children(self): # Neither does this
+    def kill_self_and_substracts(self): # Neither does this
         if self.children:
             for child in self.children:
-                child.delete_self_and_children()
+                child.delete_self_and_substracts()
         
         if self.parent:
             self.parent.children.remove(self)
@@ -569,15 +569,22 @@ class Abstract:
         else:
             return self.objectiveDistortion
     
-    def set_relative_distortion(self, distortion:Matrix):
+    def set_relative_distortion(self, distortion:Matrix, pivot:Matrix=None):
+        rotationPivot = pivot if pivot else self.objectiveLocation
+
+        relativeDistortions = []
+
+        for child in self.children:
+            relativeDistortions.append(child.get_relative_distortion())
+        
         if self.parent:
+            self.set_objective_location(distortion.apply(self.objectiveLocation.subtract(rotationPivot)).add(rotationPivot))
             self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
         else:
             self.objectiveDistortion = distortion
-        
+
         for child in self.children:
-            child.set_relative_location(distortion.apply(child.get_relative_location()))
-            child.set_relative_distortion(distortion.apply(child.objectiveDistortion))
+            child.set_relative_distortion(relativeDistortions.pop(0), rotationPivot)
 
 
 
@@ -639,7 +646,6 @@ class Abstract:
                                  [0, 1, 0],
                                  [-siny, 0, cosy]]))
         
-        print(self.get_relative_distortion().get_contents())
         self.set_relative_distortion(rotationMatrix.apply(self.get_relative_distortion()))
         
 
@@ -652,7 +658,11 @@ ROOT = Abstract("Root")
 
 # ---------------- GRAPHICS OBJECTS ----------------
 
-# Pygame Setup - initialises the window, 
+# Pygame Setup - initialises the window
+
+# I'm doing this here because some of the graphics abstracts
+# have to reference these
+
 pygame.init()
 window = pygame.display.set_mode((320, 240))
 clock = pygame.time.Clock()
@@ -688,7 +698,7 @@ class Camera(Abstract):
         super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, cameraLocationMatrix, inversion, tri):
+    def project_tri(self, cameraLocationMatrix, inversion, tri, lights:list[Abstract]=None):
         triLocation = tri.get_objective_location().get_contents()
         triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],
                                  [triLocation[1][0], triLocation[1][0], triLocation[1][0]],
@@ -697,8 +707,15 @@ class Camera(Abstract):
         triObjectiveVertices = tri.get_objective_distortion().apply(tri.get_vertices()).add(triLocationMatrix)
         
         triCameraVertices = inversion.apply(triObjectiveVertices.subtract(cameraLocationMatrix)).get_contents()
+
+        # Finds the tri's position relative to the camera
         
-        if triCameraVertices[2][0] > 0 and triCameraVertices[2][1] > 0 and triCameraVertices[2][2] > 0:
+        if triCameraVertices[2][0] > 0.1 and triCameraVertices[2][1] > 0.1 and triCameraVertices[2][2] > 0.1:
+            # Culls all tris behind the camera
+
+            if tri.lit and lights: # Calculates normal and changes brightness accordingly
+                pass
+
             screenSpaceCoordinates = (
                 (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 160, 
                 -triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 120),
@@ -758,42 +775,100 @@ childAbstract.add_child(childChildAbstract)
 
 print(origin.get_substracts_with_tag("Rose toy"))'''
 
-# Set up origin, camera and player hyperstracts
-
+# Set up origin, camera and player abstracts
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
 
+# Create the player and camera
 player = Abstract("Player")
 origin.add_child_relative(player)
 camera = Camera("Main camera", ORIGIN, I3, 0.005)
 player.add_child_relative(camera)
 
+# Create the environment
 environment = Abstract("Environment", ORIGIN, I3)
 origin.add_child_relative(environment)
 floor = Abstract("Floor", Matrix([[0],
                                   [-1],
                                   [0]]), I3)
+
 environment.add_child_relative(floor)
-for i in range(-2, 2):
+
+# Generates the surrounding walls
+for i in range(-2, 2): # Ground
     for j in range(-2, 2):
         tile = Tri([[i, 0, j],
                     [i + 1, 0, j],
                     [i, 0, j + 1]], ((i + 6) * 20, 255, (j + 6) * 20), True)
         floor.add_child_relative(tile)
-for i in range(-2, 2):
+
+for i in range(-2, 2): # Red wall
     for j in range(0, 4):
         tile = Tri([[i, j, 2],
                     [i + 1, j, 2],
                     [i, j + 1, 2]], (255, (i + 6) * 20, (j + 6) * 20), True)
         floor.add_child_relative(tile)
-for i in range(-2, 2):
+
+for i in range(-2, 2): # Blue wall
     for j in range(0, 4):
         tile = Tri([[-2, j, i],
                     [-2, j + 1, i],
                     [-2, j, i + 1]], ((i + 6) * 20, (j + 6) * 20, 255), True)
         floor.add_child_relative(tile)
 
-movementSpeed = 2
+cube = Abstract("Cube", ORIGIN, Matrix([[0.5, 0, 0],
+                                        [0, 0.5, 0],
+                                        [0, 0, 0.5]]))
+environment.add_child_relative(cube)
+# Right yellow face
+cube.add_child_relative(Tri([[1, 1, 1],
+                             [1, -1, 1],
+                             [1, -1, -1]], (255, 255, 0), True))
+cube.add_child_relative(Tri([[1, 1, 1],
+                             [1, 1, -1],
+                             [1, -1, -1]], (255, 255, 0), True))
+# Front cyan face
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [-1, -1, 1],
+                             [1, -1, 1]], (0, 255, 255), True))
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [1, 1, 1],
+                             [1, -1, 1]], (0, 255, 255), True))
+# Top magenta face
+cube.add_child_relative(Tri([[1, 1, 1],
+                             [-1, 1, 1],
+                             [-1, 1, -1]], (255, 0, 255), True))
+cube.add_child_relative(Tri([[1, 1, 1],
+                             [1, 1, -1],
+                             [-1, 1, -1]], (255, 0, 255), True))
+# Left yellow face
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [-1, -1, 1],
+                             [-1, -1, -1]], (255, 255, 0), True))
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [-1, 1, -1],
+                             [-1, -1, -1]], (255, 255, 0), True))
+# Back cyan face
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [-1, -1, 1],
+                             [1, -1, 1]], (0, 255, 255), True))
+cube.add_child_relative(Tri([[-1, 1, 1],
+                             [1, 1, 1],
+                             [1, -1, 1]], (0, 255, 255), True))
+# Bottom magenta face
+cube.add_child_relative(Tri([[1, -1, 1],
+                             [-1, -1, 1],
+                             [-1, -1, -1]], (255, 0, 255), True))
+cube.add_child_relative(Tri([[1, -1, 1],
+                             [1, -1, -1],
+                             [-1, -1, -1]], (255, 0, 255), True))
+
+movementSpeed = 3
+lookSpeed = 2
+
+environment.set_objective_distortion(Matrix([[1, 0, 0],
+                                             [0, 1, 0],
+                                             [0, 0, 1]]))
     
 frameDelta = 0
 
@@ -826,16 +901,19 @@ while running:
                                     [0]]))
     
     if keys[pygame.K_RIGHT]:
-        player.rotate_euler_radians(0, 1 * frameDelta, 0)
+        player.rotate_euler_radians(0, lookSpeed * frameDelta, 0)
     if keys[pygame.K_LEFT]:
-        player.rotate_euler_radians(0, -1 * frameDelta, 0)
+        player.rotate_euler_radians(0, -lookSpeed * frameDelta, 0)
 
     if keys[pygame.K_UP]:
-        camera.rotate_euler_radians(-1 * frameDelta, 0, 0)
+        camera.rotate_euler_radians(-lookSpeed * frameDelta, 0, 0)
     if keys[pygame.K_DOWN]:
-        camera.rotate_euler_radians(1 * frameDelta, 0, 0)
+        camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
 
     window.fill((255, 255, 255))
+
+    environment.rotate_euler_radians(1*frameDelta, 0, 1*frameDelta)
+    cube.rotate_euler_radians(2*frameDelta, 0, 2*frameDelta)
 
     camera.rasterize()
         
@@ -845,7 +923,7 @@ while running:
         print("Framedrop detected")
 
     try:
-        print(f"Finished frame calculation test in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz")
+        print(f"Finished frame in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz \n")
     except:
         print("Very fast")
         
