@@ -578,7 +578,7 @@ class Abstract:
             relativeDistortions.append(child.get_relative_distortion())
         
         if self.parent:
-            self.set_objective_location(distortion.apply(self.objectiveLocation.subtract(rotationPivot)).add(rotationPivot))
+            self.set_objective_location(self.objectiveLocation)
             self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
         else:
             self.objectiveDistortion = distortion
@@ -602,37 +602,14 @@ class Abstract:
 
         self.translate_objective(objectiveVector)
 
-        
-    def rotate_euler_trig_radians(self, sinx:float, cosx:float, siny:float, cosy:float, sinz:float, cosz:float, pivot:Matrix=None):
-        # This function seems completely useless, and for the most part
-        # it is. However, it *marginally* speeds up rotate_euler_radians
-        # so it's kind of worth it
 
-        pivot = pivot if pivot else self.objectiveLocation
-        
-        rotationMatrix = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
-                                 [sinz, cosz, 0],
-                                 [0, 0, 1]]).apply(
-                         
-                         Matrix([[1, 0, 0],
-                                 [0, cosx, -sinx],
-                                 [0, sinx, cosx]])).apply(
-                                     
-                         Matrix([[cosy, 0, siny],
-                                 [0, 1, 0],
-                                 [-siny, 0, cosy]]))
-        
-        self.set_relative_distortion(rotationMatrix.apply(self.get_relative_distortion()))
-
-    def rotate_euler_radians(self, x:float, y:float, z:float, pivot:Matrix=None): # This follows the order yxz
+    def rotate_euler_radians(self, x:float, y:float, z:float): # This follows the order yxz
         sinx = math.sin(x)
         cosx = math.cos(x)
         siny = math.sin(y)
         cosy = math.cos(y)
         sinz = math.sin(z)
         cosz = math.cos(z)
-
-        pivot = pivot if pivot else self.objectiveLocation
         
         rotationMatrix = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
                                  [sinz, cosz, 0],
@@ -816,10 +793,13 @@ for i in range(-2, 2): # Blue wall
                     [-2, j, i + 1]], ((i + 6) * 20, (j + 6) * 20, 255), True)
         floor.add_child_relative(tile)
 
+cubeWrapper = Abstract()
+environment.add_child_relative(cubeWrapper)
+
 cube = Abstract("Cube", ORIGIN, Matrix([[0.5, 0, 0],
                                         [0, 0.5, 0],
                                         [0, 0, 0.5]]))
-environment.add_child_relative(cube)
+cubeWrapper.add_child_relative(cube)
 # Right yellow face
 cube.add_child_relative(Tri([[1, 1, 1],
                              [1, -1, 1],
