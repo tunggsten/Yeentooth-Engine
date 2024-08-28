@@ -473,10 +473,14 @@ class Abstract:
     def get_children(self):
         return self.children
     
-    def add_child(self, newChild):
+    def add_child_relative(self, newChild):
+        relativeLocation = newChild.get_relative_location()
+
         if newChild.parent:
             newChild.parent.children.remove(newChild)
         newChild.parent = self
+
+        newChild.set_relative_location(relativeLocation)
         
         if not newChild in self.children:
             self.children.append(newChild)
@@ -520,16 +524,23 @@ class Abstract:
     def get_objective_location(self):
         return self.objectiveLocation
     
-    def set_objective_location(self, location):
+    def set_objective_location(self, location:Matrix):
+        for child in self.children:
+            child.set_objective_location(location.add(child.get_relative_location()))
+
         self.objectiveLocation = location
-        
         
         
     def get_objective_distortion(self):
         return self.objectiveDistortion
     
-    def set_objective_distortion(self, distortion):
+    def set_objective_distortion(self, distortion:Matrix):
+        for child in self.children:
+            child.set_relative_location(distortion.apply(child.get_relative_location()))
+            child.set_objective_distortion(distortion.apply(child.objectiveDistortion))
+
         self.objectiveDistortion = distortion
+
         
     
     
@@ -539,28 +550,74 @@ class Abstract:
         else:
             return self.objectiveLocation
         
-    def set_relative_location(self, location):
+    def set_relative_location(self, location:Matrix):
+        newLocation = self.parent.objectiveLocation.add(self.parent.objectiveDistortion.apply(location))
+
+        for child in self.children:
+            child.set_relative_location(location.add(child.get_relative_location()))
+
         if self.parent:
-            self.objectiveLocation = self.parent.objectiveLocation.add(self.parent.objectiveDistortion.apply(location))
+            self.objectiveLocation = newLocation
         else:
             self.objectiveLocation = location
+
+
             
     def get_relative_distortion(self):
         if self.parent:
             return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveDistortion)
+        else:
+            return self.objectiveDistortion
     
-    def set_relative_distortion(self, distortion):
+    def set_relative_distortion(self, distortion:Matrix):
         if self.parent:
             self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
         else:
             self.objectiveDistortion = distortion
         
-        
+        for child in self.children:
+            child.set_relative_location(distortion.apply(child.get_relative_location()))
+            child.set_relative_distortion(distortion.apply(child.objectiveDistortion))
 
-    def translate_objective(self, vector):
+
+
+    def translate_objective(self, vector:Matrix):
         self.objectiveLocation = self.objectiveLocation.add(vector)
 
-    def rotate_euler_radians(self, x, y, z): # This follows the order yxz
+        for child in self.children:
+            child.translate_objective(vector)
+
+    def translate_relative(self, vector:Matrix):
+        if self.parent:
+            objectiveVector = self.objectiveDistortion.apply(vector)
+        else:
+            objectiveVector = vector
+
+        self.translate_objective(objectiveVector)
+
+        
+    def rotate_euler_trig_radians(self, sinx:float, cosx:float, siny:float, cosy:float, sinz:float, cosz:float, pivot:Matrix=None):
+        # This function seems completely useless, and for the most part
+        # it is. However, it *marginally* speeds up rotate_euler_radians
+        # so it's kind of worth it
+
+        pivot = pivot if pivot else self.objectiveLocation
+        
+        rotationMatrix = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
+                                 [sinz, cosz, 0],
+                                 [0, 0, 1]]).apply(
+                         
+                         Matrix([[1, 0, 0],
+                                 [0, cosx, -sinx],
+                                 [0, sinx, cosx]])).apply(
+                                     
+                         Matrix([[cosy, 0, siny],
+                                 [0, 1, 0],
+                                 [-siny, 0, cosy]]))
+        
+        self.set_relative_distortion(rotationMatrix.apply(self.get_relative_distortion()))
+
+    def rotate_euler_radians(self, x:float, y:float, z:float, pivot:Matrix=None): # This follows the order yxz
         sinx = math.sin(x)
         cosx = math.cos(x)
         siny = math.sin(y)
@@ -568,18 +625,24 @@ class Abstract:
         sinz = math.sin(z)
         cosz = math.cos(z)
 
-        print(sinx, cosx, siny, cosy, sinz, cosz)
+        pivot = pivot if pivot else self.objectiveLocation
         
-        self.set_relative_distortion(Matrix([[cosz, -sinz, 0], # This is wrong, fix later
-                                             [sinz, cosz, 0],
-                                             [0, 0, 1]]).apply(
-                                      
-                                     Matrix([[1, 0, 0],
-                                             [0, cosx, -sinx],
-                                             [0, sinx, cosx]])).apply(
-                                     Matrix([[cosy, 0, siny],
-                                             [0, 1, 0],
-                                             [-siny, 0, cosy]])).apply(self.get_relative_distortion()))
+        rotationMatrix = Matrix([[cosz, -sinz, 0], # This is wrong, fix later
+                                 [sinz, cosz, 0],
+                                 [0, 0, 1]]).apply(
+                         
+                         Matrix([[1, 0, 0],
+                                 [0, cosx, -sinx],
+                                 [0, sinx, cosx]])).apply(
+                                     
+                         Matrix([[cosy, 0, siny],
+                                 [0, 1, 0],
+                                 [-siny, 0, cosy]]))
+        
+        print(self.get_relative_distortion().get_contents())
+        self.set_relative_distortion(rotationMatrix.apply(self.get_relative_distortion()))
+        
+
                             
 # Important default abstracts:
 
@@ -638,13 +701,13 @@ class Camera(Abstract):
         if triCameraVertices[2][0] > 0 and triCameraVertices[2][1] > 0 and triCameraVertices[2][2] > 0:
             screenSpaceCoordinates = (
                 (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 160, 
-                triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 120),
+                -triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 120),
                 
                 (triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 160, 
-                triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 120),
+                -triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 120),
                 
                 (triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 160, 
-                triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 120)
+                -triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 120)
             )
             
             pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
@@ -695,31 +758,42 @@ childAbstract.add_child(childChildAbstract)
 
 print(origin.get_substracts_with_tag("Rose toy"))'''
 
+# Set up origin, camera and player hyperstracts
+
 origin = Abstract("Origin")
+ROOT.add_child_relative(origin)
 
-ROOT.add_child(origin)
+player = Abstract("Player")
+origin.add_child_relative(player)
+camera = Camera("Main camera", ORIGIN, I3, 0.005)
+player.add_child_relative(camera)
 
-camera = Camera("Main camera", Matrix([[0],
-                                       [0],
-                                       [-4]]), I3, 0.005)
-origin.add_child(camera)
+environment = Abstract("Environment", ORIGIN, I3)
+origin.add_child_relative(environment)
+floor = Abstract("Floor", Matrix([[0],
+                                  [-1],
+                                  [0]]), I3)
+environment.add_child_relative(floor)
+for i in range(-2, 2):
+    for j in range(-2, 2):
+        tile = Tri([[i, 0, j],
+                    [i + 1, 0, j],
+                    [i, 0, j + 1]], ((i + 6) * 20, 255, (j + 6) * 20), True)
+        floor.add_child_relative(tile)
+for i in range(-2, 2):
+    for j in range(0, 4):
+        tile = Tri([[i, j, 2],
+                    [i + 1, j, 2],
+                    [i, j + 1, 2]], (255, (i + 6) * 20, (j + 6) * 20), True)
+        floor.add_child_relative(tile)
+for i in range(-2, 2):
+    for j in range(0, 4):
+        tile = Tri([[-2, j, i],
+                    [-2, j + 1, i],
+                    [-2, j, i + 1]], ((i + 6) * 20, (j + 6) * 20, 255), True)
+        floor.add_child_relative(tile)
 
-movementSpeed = 1.5
-
-mesh = Abstract("Mesh", ORIGIN, Matrix([[2, 0, 0],
-                                        [0, 1, 0],
-                                        [0, 0, 1]]))
-origin.add_child(mesh)
-
-for i in range(50):
-    n = Tri([[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)],
-             [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)],
-             [random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)]],
-                        
-            (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
-            
-            True)
-    mesh.add_child(n)
+movementSpeed = 2
     
 frameDelta = 0
 
@@ -734,36 +808,41 @@ while running:
             
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
-        camera.translate_objective(Matrix([[0],
+        player.translate_relative(Matrix([[0],
                                     [0],
                                     [movementSpeed * frameDelta]]))
-    elif keys[pygame.K_s]:
-        camera.translate_objective(Matrix([[0],
+    if keys[pygame.K_s]:
+        player.translate_relative(Matrix([[0],
                                     [0],
                                     [-movementSpeed * frameDelta]]))
         
     if keys[pygame.K_a]:
-        camera.translate_objective(Matrix([[-movementSpeed * frameDelta],
+        player.translate_relative(Matrix([[-movementSpeed * frameDelta],
                                     [0],
                                     [0]]))
-    elif keys[pygame.K_d]:
-        camera.translate_objective(Matrix([[movementSpeed * frameDelta],
+    if keys[pygame.K_d]:
+        player.translate_relative(Matrix([[movementSpeed * frameDelta],
                                     [0],
                                     [0]]))
     
     if keys[pygame.K_RIGHT]:
-        camera.rotate_euler_radians(0, 1 * frameDelta, 0)
-    elif keys[pygame.K_LEFT]:
-        camera.rotate_euler_radians(0, -1 * frameDelta, 0)
+        player.rotate_euler_radians(0, 1 * frameDelta, 0)
+    if keys[pygame.K_LEFT]:
+        player.rotate_euler_radians(0, -1 * frameDelta, 0)
 
-    
-    mesh.rotate_euler_radians(1 * frameDelta, 1 * frameDelta, 0)
+    if keys[pygame.K_UP]:
+        camera.rotate_euler_radians(-1 * frameDelta, 0, 0)
+    if keys[pygame.K_DOWN]:
+        camera.rotate_euler_radians(1 * frameDelta, 0, 0)
 
     window.fill((255, 255, 255))
 
     camera.rasterize()
         
     frameDelta = time.time() - startTime
+
+    if frameDelta > 0.1:
+        print("Framedrop detected")
 
     try:
         print(f"Finished frame calculation test in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz")
