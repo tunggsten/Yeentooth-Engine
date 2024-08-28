@@ -578,8 +578,8 @@ class Abstract:
             relativeDistortions.append(child.get_relative_distortion())
         
         if self.parent:
-            self.set_objective_location(self.objectiveLocation)
-            self.objectiveDistortion = self.parent.objectiveDistortion.apply(distortion)
+            self.set_objective_location(distortion.apply(self.objectiveLocation.subtract(rotationPivot)).add(rotationPivot))
+            self.set_objective_distortion(self.parent.objectiveDistortion.apply(distortion))
         else:
             self.objectiveDistortion = distortion
 
@@ -796,10 +796,13 @@ for i in range(-2, 2): # Blue wall
 cubeWrapper = Abstract()
 environment.add_child_relative(cubeWrapper)
 
-cube = Abstract("Cube", ORIGIN, Matrix([[0.5, 0, 0],
+cube = Abstract("Cube", Matrix([[0,5],
+                               [0],
+                               [0]]), Matrix([[0.5, 0, 0],
                                         [0, 0.5, 0],
                                         [0, 0, 0.5]]))
 cubeWrapper.add_child_relative(cube)
+
 # Right yellow face
 cube.add_child_relative(Tri([[1, 1, 1],
                              [1, -1, 1],
@@ -892,7 +895,6 @@ while running:
 
     window.fill((255, 255, 255))
 
-    environment.rotate_euler_radians(1*frameDelta, 0, 1*frameDelta)
     cube.rotate_euler_radians(2*frameDelta, 0, 2*frameDelta)
 
     camera.rasterize()
