@@ -106,6 +106,11 @@ class Matrix:
         
         # Step 1: Find the determinant.
         det = self.get_3x3_determinant()
+
+        if det == 0:
+            return Matrix([[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]])
         
         # That wasn't so hard!
         
@@ -228,10 +233,7 @@ class Matrix:
                 row.append(workingContents[j][i])
             transposedCofactors.append(row)
         
-        try:
-            return Matrix(transposedCofactors).multiply_contents(1 / det)
-        except:
-            print("This matrix is probably singular, so an inverse couldn't be found.")
+        return Matrix(transposedCofactors).multiply_contents(1 / det)
             
         # Thank god it's over! I hope your enjoyed our munity through 3x3 matrix inversion.
         # I'm probably not going to mansplain as much in the rest of my code but for other complex
@@ -239,7 +241,7 @@ class Matrix:
         
     def add(self, matrixToAddIdk):
         if self.order != matrixToAddIdk.get_order():
-            print("These have different orders dumbass you can't add them")
+            print(f"{self.get_contents()} and {matrixToAddIdk.get_contents()} have different orders dumbass you can't add them")
             return None
         
         contentsToAdd = matrixToAddIdk.get_contents()
@@ -299,7 +301,7 @@ class Matrix:
                                              # memory efficiency
 
         if self.get_order()[1] != right.get_order()[0]:
-            print(f"The matrices {self} and {right} can't be applied!")
+            print(f"The matrices {self.get_contents()} and {right.get_contents()} can't be applied!")
             return None # SEe? I can do input validation!!!
 
         productOrder = (self.get_order()[0], right.get_order()[1])
@@ -340,20 +342,13 @@ ORIGIN = Matrix([[0],
 
 class Abstract:
     def __init__(self, 
-                 
                  name:str=None,
-                 
                  location:Matrix=None, 
-                 
                  distortion:Matrix=None, 
-                 
                  tags:list[str]=None,
-                 
+                 script=None,
                  parent=None, 
-                 
-                 children=None, 
-                 
-                 script=None): # I'm well aware this is clapped. 
+                 children=None): # I'm well aware this is clapped. 
         
                              # Unfortunately for people unlucky enough to see this, default values in Python
                              # are created at the definition of the function, instead of when it's called. 
@@ -429,6 +424,14 @@ class Abstract:
     def check_for_tag(self, tag:str):
         return tag in self.tags
     
+    def get_children_with_tag(self, tag:str):
+        found = []
+        for child in self.children:
+            if child.check_for_tag(tag):
+                found.append(child)
+        
+        return found
+    
     def get_substracts_with_tag(self, tag:str):
         found = []
         for child in self.children:
@@ -444,12 +447,20 @@ class Abstract:
     def get_type(self):
         return self.__class__
     
-    def get_substracts_of_type(self, type):
+    def get_children_of_type(self, type): # Children are the abstracts directly underneath an abstract
         found = []
         for child in self.children:
             if child.__class__ == type:
                 found.append(child)
-                
+
+        return found
+    
+    def get_substracts_of_type(self, type): # Substracts are all abstracts underneath an abstract,
+        found = []                          # meaning its children, its children's children, etc.
+        for child in self.children:
+            if child.__class__ == type:     # The same applies to parents and superstracts;
+                found.append(child)         # parents are directly above, superstracts are everything
+                                            # above
             found += child.get_substracts_of_type(type)
             
         return found
@@ -474,13 +485,13 @@ class Abstract:
         return self.children
     
     def add_child_relative(self, newChild):
-        relativeLocation = newChild.get_relative_location()
-
+        print(f"Adding child: {newChild.get_name()} at {newChild.objectiveLocation}")
         if newChild.parent:
             newChild.parent.children.remove(newChild)
         newChild.parent = self
 
-        newChild.set_relative_location(relativeLocation)
+        newChild.set_location_relative(newChild.objectiveLocation)
+        newChild.set_distortion_relative(newChild.objectiveDistortion)
         
         if not newChild in self.children:
             self.children.append(newChild)
@@ -518,91 +529,165 @@ class Abstract:
         
         del self
 
-
-    # Transform functions
-        
-    def get_objective_location(self):
-        return self.objectiveLocation
     
-    def set_objective_location(self, location:Matrix):
-        for child in self.children:
-            child.set_objective_location(location.add(child.get_relative_location()))
+
+    # Transform functionsDO NOT TOUCH EVER!!!!!!!!!!!11🚫🚫🚫🚫🚫🚫🚫🚫
+    # ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔☣️☣️☣️☣️☣️☣️☣️☣️☣️☣️☣️
+    # ☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️☠️
+    # THIS TOOK FOUR FUCKING DAYS TO DEBUG THE LAST TIME IT BROKE
+
+    # Location functions 
+
+    # Objective
+
+    def get_location_objective(self):
+        return self.objectiveLocation
+
+    def set_location_objective(self, location:Matrix):
+        vector = location.subtract(self.objectiveLocation)
 
         self.objectiveLocation = location
-        
-        
-    def get_objective_distortion(self):
-        return self.objectiveDistortion
+
+        for child in self.get_children():
+            child.translate_objective(vector)
     
-    def set_objective_distortion(self, distortion:Matrix):
-        for child in self.children:
-            child.set_relative_location(distortion.apply(child.get_relative_location()))
-            child.set_objective_distortion(distortion.apply(child.objectiveDistortion))
-
-        self.objectiveDistortion = distortion
-
-        
-    
-    
-    def get_relative_location(self):
-        if self.parent:
-            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveLocation.subtract(self.parent.objectiveLocation))
-        else:
-            return self.objectiveLocation
-        
-    def set_relative_location(self, location:Matrix):
-        newLocation = self.parent.objectiveLocation.add(self.parent.objectiveDistortion.apply(location))
-
-        for child in self.children:
-            child.set_relative_location(location.add(child.get_relative_location()))
-
-        if self.parent:
-            self.objectiveLocation = newLocation
-        else:
-            self.objectiveLocation = location
-
-
-            
-    def get_relative_distortion(self):
-        if self.parent:
-            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveDistortion)
-        else:
-            return self.objectiveDistortion
-    
-    def set_relative_distortion(self, distortion:Matrix, pivot:Matrix=None):
-        rotationPivot = pivot if pivot else self.objectiveLocation
-
-        relativeDistortions = []
-
-        for child in self.children:
-            relativeDistortions.append(child.get_relative_distortion())
-        
-        if self.parent:
-            self.set_objective_location(distortion.apply(self.objectiveLocation.subtract(rotationPivot)).add(rotationPivot))
-            self.set_objective_distortion(self.parent.objectiveDistortion.apply(distortion))
-        else:
-            self.objectiveDistortion = distortion
-
-        for child in self.children:
-            child.set_relative_distortion(relativeDistortions.pop(0), rotationPivot)
-
-
-
     def translate_objective(self, vector:Matrix):
         self.objectiveLocation = self.objectiveLocation.add(vector)
 
-        for child in self.children:
+        for child in self.get_children():
             child.translate_objective(vector)
+
+    # Relative
+
+    def get_location_relative(self):
+        if self.parent:
+            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveLocation.subtract(self.parent.objectiveLocation))
+            # This subtracts the parent's location to move the origin to the parent, and then reverses the
+            # parent's distortion to get the relative coordinate
+        else:
+            return self.objectiveLocation
+            # If it has no parent, it must be the root, so we just have to find it's objective location
+
+    def set_location_relative(self, location:Matrix):
+        if self.parent:
+            self.set_location_objective(self.parent.objectiveDistortion.apply(location).add(self.parent.objectiveLocation))
+            # This starts by distorting the location to make it relative to the parent's axes, and then
+            # moves it from the objective origin to the parent
+        else:
+            self.set_location_objective(location)
 
     def translate_relative(self, vector:Matrix):
         if self.parent:
-            objectiveVector = self.objectiveDistortion.apply(vector)
+            self.translate_objective(self.objectiveDistortion.apply(vector))
+            # We only need to apply the distortion here, because vector is just a 
+            # direction and a magnitude instead of being a point in space
         else:
-            objectiveVector = vector
-
-        self.translate_objective(objectiveVector)
+            self.translate_objective(vector)
 
 
+
+    # Distortion functions (I've spent four days and counting debugging these)
+
+    # Objective
+
+    def get_distoriton_objective(self):
+        return self.objectiveDistortion
+        
+    def set_distortion_objective(self, distortion:Matrix, pivot:Matrix=None):
+        distortionPivot = pivot if pivot else self.objectiveLocation
+
+        transformation = distortion.apply(self.objectiveDistortion.get_3x3_inverse())
+
+        # That's the distortion matrix you have to apply to skew the current distortion
+        # to the target one. This works because:
+
+        # [transformation][currentDistortion] has to equal [targetDistortion]    <--------------------------------
+        #                                                                                                        |
+        # We can apply the inverse of the current distortion on the right                                        |
+        # of both sides of the equation without making it invalid                                                |          This stupid fucking arrow
+        #                                                                                                        |          took longer to make than
+        # [transformation][currentDistortion][currentDistortion]^-1 = [targetDistortion][currentDistortion]^-1   |          everything else in this 
+        #                                                                                                        |          explanation
+        # Then [currentDistortion][currentDistortion]^-1 cancel out to make I3, which doesn't change             |          
+        # matrices when it's applied to them.                                                                    |
+        #                                                                                                        |
+        # Therefore ----------------------------------------------------------------------------------------------
+
+        self.objectiveDistortion = distortion
+        self.objectiveLocation = transformation.apply(self.objectiveLocation.subtract(distortionPivot)).add(distortionPivot)
+
+        # That last line changed the abstract's location to move it round the pivot point.
+        # Most of the time you won't need a pivot, but it's used when this recurrs over
+        # an abstract's substracts.
+
+        # That worked because:
+
+        # Applying a transformation matrix to a point transforms it relative to the origin.
+
+        # |                   /
+        # |    x      --->   /    x
+        # |                 /
+        # +--------        /-------- 
+
+        # Therefore, if we want to transform around a pivot thats' not the origin,
+        # we can subtract the location of a pivot from the point's location
+        # so the new location of the point is what it's location relative to the 
+        # pivot was.
+
+        # |     x                                           |          
+        # |          subtract location of p from everything | x        Now p is
+        # |   p                        --->                 |          the origin.
+        # +--------                                         p--------
+
+        # *Now* we can apply our transformation, because we've effectively mored the
+        # origin to the pivot. Then, we just move the origin back by adding the
+        # pivot's location back to everything.
+
+        for child in self.children:
+            child.distort_objective(transformation, distortionPivot) # This makes all the substracts
+                                                           # move to keep their relative
+                                                           # transforms
+
+    def distort_objective(self, transformation:Matrix, pivot:Matrix=None):
+        distortionPivot = pivot if pivot else self.objectiveLocation
+
+        self.objectiveDistortion = transformation.apply(self.objectiveDistortion)
+        self.objectiveLocation = transformation.apply(self.objectiveLocation.subtract(distortionPivot)).add(distortionPivot)
+
+        for child in self.children:
+            child.distort_objective(transformation, distortionPivot)
+
+    # Relative
+
+    def get_distortion_relative(self):
+        if self.parent:
+            return self.parent.objectiveDistortion.get_3x3_inverse().apply(self.objectiveDistortion)
+            # Here we just undo the parent's distortion
+        else:
+            return self.objectiveDistortion
+        
+    def set_distortion_relative(self, distortion):
+        if self.parent:
+            self.set_distortion_objective(self.parent.objectiveDistortion.apply(distortion))
+        else:
+            self.set_distortion_objective(distortion)
+
+    def distort_relative(self, transformation):
+        if self.parent:
+            self.distort_objective(self.parent.objectiveDistortion.apply(transformation).apply(self.parent.objectiveDistortion.get_3x3_inverse()))
+            # We need to appply the inverse at the end of this function but *not* set_distortion_relative
+            # becasue reasons. I'll be entirely honest idfk why I just applied the inverse on a whim while
+            # bug fixing and it worked but it fucked up set_distortion_relative when I put it on there
+
+            # I think it's something do with how transformation is a difference and it isn't relative to 
+            # actual points?
+        else:
+            self.distort_objective(transformation)
+    
+
+
+    # Rotation functions
+        
     def rotate_euler_radians(self, x:float, y:float, z:float): # This follows the order yxz
         sinx = math.sin(x)
         cosx = math.cos(x)
@@ -623,7 +708,7 @@ class Abstract:
                                  [0, 1, 0],
                                  [-siny, 0, cosy]]))
         
-        self.set_relative_distortion(rotationMatrix.apply(self.get_relative_distortion()))
+        self.distort_relative(rotationMatrix) # Change back to relative when it's fixed
         
 
                             
@@ -646,19 +731,21 @@ clock = pygame.time.Clock()
 running = True
 
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
-    def __init__(self, vertices, albedo, lit: bool):   
-        super().__init__("Tri", ORIGIN, I3, ["Tri"])
+    def __init__(self, 
+                 vertices:list[list[float]], 
+                 albedo:tuple, lit:bool, tags:list[str]=None):   
+        super().__init__("Tri", ORIGIN, I3, ["Tri"] + tags if tags else [])
         
         # Vertices should be an array of 3 arrays.
-                                            # Each array is a coordinate, done in clockwise 
-                                            # order if you're looking at the opaque side.
+        # Each array is a coordinate, done in clockwise 
+        # order if you're looking at the opaque side.
 
-                                            # This gets converted to a 3x3 matrix with each
-                                            # collumb being a coordinate.
+        # This gets converted to a 3x3 matrix with each
+        # collumb being a coordinate.
 
-                                            # Is this really annoying? Yes!
-                                            # But it makes it easier to apply transformation 
-                                            # matrices to polygons so I'll just hate myself later 
+        # Is this really annoying? Yes!
+        # But it makes it easier to apply transformation 
+        # matrices to polygons so I'll just hate myself later 
 
         self.vertices = Matrix(vertices).get_transpose()
         self.albedo = albedo
@@ -669,22 +756,105 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
     
     def set_vertices(self, vertices):
         self.vertices = vertices
+
+    def get_albedo(self):
+        return self.albedo
+    
+    def set_albedo(self, albedo:tuple):
+        self.albedo = albedo
+
+class Plane(Abstract):
+    def __init__(self, 
+                 name:str, 
+                 quadResolution:tuple,
+                 colour:tuple, 
+                 lit:bool=None,
+                 location:Matrix=None, 
+                 distortion:Matrix=None,
+                 tags:list[str]=None,
+                 script=None):
+        super().__init__(name, 
+                         location if location else ORIGIN, 
+                         distortion if distortion else I3,
+                         tags if tags else [],
+                         script)
+        self.quadResolution = quadResolution # Number of quads along each side
+        self.colour = colour
+        self.lit = lit if lit is not None else False
+
+        self.generate_plane()
+
+    def generate_plane(self):
+        quadWidth = 1 / self.quadResolution[0]
+        quadHeight = 1 / self.quadResolution[1]
+
+        for i in range(self.quadResolution[0]):
+            for j in range(self.quadResolution[1]):
+                corner = (-0.5 + quadWidth * i, -0.5 + quadWidth * j)
+
+                self.add_child_relative(Tri([[corner[0], 0, corner[1]],
+                                             [corner[0], 0, corner[1] + quadHeight],
+                                             [corner[0] + quadWidth, 0, corner[1]]], self.colour, self.lit, ["PlaneTri"]))
+                self.add_child_relative(Tri([[corner[0] + quadWidth, 0, corner[1] + quadHeight],
+                                             [corner[0], 0, corner[1] + quadHeight],
+                                             [corner[0] + quadWidth, 0, corner[1]]], self.colour, self.lit, ["PlaneTri"]))
+        
+    def set_quad_resolution(self, quadResolution:tuple):
+        tris = self.get_children_with_tag("PlaneTri")
+        for tri in tris:
+            tri.kill_self()
+        
+        self.quadResolution = quadResolution
+
+        self.generate_plane()
+
+    def set_pattern_checkerboard(self, colour1:tuple, colour2:tuple):
+        tris = self.get_children_with_tag("PlaneTri")
+
+        for i in range(len(tris), 4):
+            tris[i].set_albedo(colour1)
+            tris[i+1].set_albedo(colour1)
+            tris[i+2].set_albedo(colour2)
+            tris[i+3].set_albedo(colour2)
+
+    def set_pattern_gradient(self, bottomLeft:tuple, bottomRight:tuple, topLeft:tuple, topRight:tuple): # This does not work
+        leftGap = ((topLeft[0] - bottomLeft[0]) / self.quadResolution[1],
+                   (topLeft[1] - bottomLeft[1]) / self.quadResolution[1],
+                   (topLeft[2] - bottomLeft[2]) / self.quadResolution[1])
+        
+        rightGap = ((topRight[0] - bottomRight[0]) / self.quadResolution[1],
+                   (topRight[1] - bottomRight[1]) / self.quadResolution[1],
+                   (topRight[2] - bottomRight[2]) / self.quadResolution[1])
+        
+        tris = self.get_children_with_tag("PlaneTri")
+        
+        for i in range(self.quadResolution[0]):
+            leftColour = (bottomLeft[0] + (leftGap[0] * i), bottomLeft[1] + (leftGap[1] * i), bottomLeft[2] + (leftGap[2] * i))
+            rightColour = (bottomRight[0] + (rightGap[0] * i), bottomRight[1] + (rightGap[1] * i), bottomRight[2] + (rightGap[2] * i))
+
+            for j in range(self.quadResolution[1]):
+                
+                tris[i * self.quadResolution[0] + j].set_albedo(((rightColour[0] - leftColour[0] / self.quadResolution[1]) * j,
+                                                                 (rightColour[1] - leftColour[1] / self.quadResolution[1]) * j, 
+                                                                 (rightColour[2] - leftColour[2] / self.quadResolution[1]) * j))
+
         
 class Camera(Abstract):
-    def __init__(self, name, location, distortion, perspectiveConstant):
+    def __init__(self, name:str, location, distortion, perspectiveConstant:float):
         super().__init__(name, location, distortion, ["Camera"])
         self.perspectiveConstant = perspectiveConstant
         
-    def project_tri(self, cameraLocationMatrix, inversion, tri, lights:list[Abstract]=None):
-        triLocation = tri.get_objective_location().get_contents()
-        triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],
-                                 [triLocation[1][0], triLocation[1][0], triLocation[1][0]],
-                                 [triLocation[2][0], triLocation[2][0], triLocation[2][0]]])
+    def project_tri(self, cameraLocationMatrix:Matrix, inversion:Matrix, tri:Tri, lights:list[Abstract]=None):
+        triLocation = tri.objectiveLocation.get_contents()
 
-        triObjectiveVertices = tri.get_objective_distortion().apply(tri.get_vertices()).add(triLocationMatrix)
+        triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],  # This is the tri's location
+                                    [triLocation[1][0], triLocation[1][0], triLocation[1][0]],  # repeated three times as collumbs
+                                    [triLocation[2][0], triLocation[2][0], triLocation[2][0]]]) # in a 3x3 matrix
+
+        triObjectiveVertices = tri.objectiveDistortion.apply(tri.get_vertices()).add(triLocationMatrix) # The tri's vertices in objective space
         
-        triCameraVertices = inversion.apply(triObjectiveVertices.subtract(cameraLocationMatrix)).get_contents()
-
+        triCameraVertices = inversion.apply(triObjectiveVertices.subtract(cameraLocationMatrix)).get_contents() # This is the tri's vertices
+                                                                                                                # relative to the camera
         # Finds the tri's position relative to the camera
         
         if triCameraVertices[2][0] > 0.1 and triCameraVertices[2][1] > 0.1 and triCameraVertices[2][2] > 0.1:
@@ -719,145 +889,44 @@ class Camera(Abstract):
         
         for tri in tris:
             self.project_tri(locationMatrix, inversion, tri)
-        
-    
 
-  
-'''          
-testMatrix = Matrix([[3, -1, 3.4],
-                     [0, -4.5, 1],
-                     [7, 3, 2]])
-
-testVector = Matrix([[1],
-                     [-25],
-                     [0.5]])
-
-
-origin = Abstract("origin", Matrix([[1], # Abstract 1
-                          [1],
-                          [1]]), Matrix([[0, 0, 1],
-                                         [0, 1, 0],
-                                         [-1, 0, 0]]))
-
-childAbstract = Abstract(None, None, None, ["Rose toy"])
-
-childChildAbstract = Abstract("childChild", Matrix([[1], # Abstract 2
-                                                    [1],
-                                                    [1]]), Matrix([[1, 0, 0],
-                                                                   [0, 2, 0],
-                                                                   [0, 0, 1]]), ["Rose toy"])
-
-origin.add_child(childAbstract)
-childAbstract.add_child(childChildAbstract)
-
-print(origin.get_substracts_with_tag("Rose toy"))'''
-
-# Set up origin, camera and player abstracts
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
 
-# Create the player and camera
-player = Abstract("Player")
+environment = Abstract("Environment")
+origin.add_child_relative(environment)
+
+player = Abstract("Player", Matrix([[0],
+                                    [0],
+                                    [-4]]))
 origin.add_child_relative(player)
-camera = Camera("Main camera", ORIGIN, I3, 0.005)
+
+camera = Camera("Camera", Matrix([[0],
+                                  [0],
+                                  [0]]), I3, 0.005)
 player.add_child_relative(camera)
 
-# Create the environment
-environment = Abstract("Environment", ORIGIN, I3)
-origin.add_child_relative(environment)
-floor = Abstract("Floor", Matrix([[0],
-                                  [-1],
-                                  [0]]), I3)
+mesh = Plane("Ground", (8, 8), (0, 0, 0), True, Matrix([[0],
+                                                        [-1],
+                                                        [0]]), Matrix([[2, 0, 0],
+                                                                       [0, 2, 0],
+                                                                       [0, 0, 2]]))
+environment.add_child_relative(mesh) 
 
-environment.add_child_relative(floor)
+mesh.set_pattern_gradient((255, 255, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255))
 
-# Generates the surrounding walls
-for i in range(-2, 2): # Ground
-    for j in range(-2, 2):
-        tile = Tri([[i, 0, j],
-                    [i + 1, 0, j],
-                    [i, 0, j + 1]], ((i + 6) * 20, 255, (j + 6) * 20), True)
-        floor.add_child_relative(tile)
 
-for i in range(-2, 2): # Red wall
-    for j in range(0, 4):
-        tile = Tri([[i, j, 2],
-                    [i + 1, j, 2],
-                    [i, j + 1, 2]], (255, (i + 6) * 20, (j + 6) * 20), True)
-        floor.add_child_relative(tile)
 
-for i in range(-2, 2): # Blue wall
-    for j in range(0, 4):
-        tile = Tri([[-2, j, i],
-                    [-2, j + 1, i],
-                    [-2, j, i + 1]], ((i + 6) * 20, (j + 6) * 20, 255), True)
-        floor.add_child_relative(tile)
+# ---------------- MAIN LOOP ----------------
 
-cubeWrapper = Abstract()
-environment.add_child_relative(cubeWrapper)
+movementSpeed = 2
+lookSpeed = 1
 
-cube = Abstract("Cube", Matrix([[0,5],
-                               [0],
-                               [0]]), Matrix([[0.5, 0, 0],
-                                        [0, 0.5, 0],
-                                        [0, 0, 0.5]]))
-cubeWrapper.add_child_relative(cube)
-
-# Right yellow face
-cube.add_child_relative(Tri([[1, 1, 1],
-                             [1, -1, 1],
-                             [1, -1, -1]], (255, 255, 0), True))
-cube.add_child_relative(Tri([[1, 1, 1],
-                             [1, 1, -1],
-                             [1, -1, -1]], (255, 255, 0), True))
-# Front cyan face
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [-1, -1, 1],
-                             [1, -1, 1]], (0, 255, 255), True))
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [1, 1, 1],
-                             [1, -1, 1]], (0, 255, 255), True))
-# Top magenta face
-cube.add_child_relative(Tri([[1, 1, 1],
-                             [-1, 1, 1],
-                             [-1, 1, -1]], (255, 0, 255), True))
-cube.add_child_relative(Tri([[1, 1, 1],
-                             [1, 1, -1],
-                             [-1, 1, -1]], (255, 0, 255), True))
-# Left yellow face
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [-1, -1, 1],
-                             [-1, -1, -1]], (255, 255, 0), True))
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [-1, 1, -1],
-                             [-1, -1, -1]], (255, 255, 0), True))
-# Back cyan face
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [-1, -1, 1],
-                             [1, -1, 1]], (0, 255, 255), True))
-cube.add_child_relative(Tri([[-1, 1, 1],
-                             [1, 1, 1],
-                             [1, -1, 1]], (0, 255, 255), True))
-# Bottom magenta face
-cube.add_child_relative(Tri([[1, -1, 1],
-                             [-1, -1, 1],
-                             [-1, -1, -1]], (255, 0, 255), True))
-cube.add_child_relative(Tri([[1, -1, 1],
-                             [1, -1, -1],
-                             [-1, -1, -1]], (255, 0, 255), True))
-
-movementSpeed = 3
-lookSpeed = 2
-
-environment.set_objective_distortion(Matrix([[1, 0, 0],
-                                             [0, 1, 0],
-                                             [0, 0, 1]]))
-    
 frameDelta = 0
 
 while running:
     startTime = time.time()
-    
+
     events = pygame.event.get()
     
     for event in events:
@@ -882,7 +951,7 @@ while running:
         player.translate_relative(Matrix([[movementSpeed * frameDelta],
                                     [0],
                                     [0]]))
-    
+        
     if keys[pygame.K_RIGHT]:
         player.rotate_euler_radians(0, lookSpeed * frameDelta, 0)
     if keys[pygame.K_LEFT]:
@@ -892,10 +961,8 @@ while running:
         camera.rotate_euler_radians(-lookSpeed * frameDelta, 0, 0)
     if keys[pygame.K_DOWN]:
         camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
-
+        
     window.fill((255, 255, 255))
-
-    cube.rotate_euler_radians(2*frameDelta, 0, 2*frameDelta)
 
     camera.rasterize()
         
