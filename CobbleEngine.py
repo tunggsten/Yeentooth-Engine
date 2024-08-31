@@ -7,7 +7,16 @@ import time
 
 
 
-# ---------------- MATHEMATICAL OBJECTS ----------------
+# ---------------- MATHEMATICAL CONSTRUCTS ----------------
+
+def clamp(val:float, min:float, max:float): # the math library didn't have a function to do this so 
+    if val > max:                           # have to pick up their slack
+        return max
+    elif val < min:
+        return min
+    else:
+        return val
+
 
 class Matrix:  
     def __init__(self, contents: list[list[float]]): # All the functions in this class are slower than my 
@@ -49,6 +58,34 @@ class Matrix:
                 multiplied[i].append(self.contents[i][j] * coefficient)
                 
         return Matrix(multiplied)
+    
+    def get_magnitude(self): # This only works on collumb vectors
+        numberOfCollumbs = len(self.contents)
+        workingMagnitude = 0
+
+        for i in range(numberOfCollumbs):
+            workingMagnitude += self.contents[i][0] ** 2
+        
+        workingMagnitude = math.sqrt(workingMagnitude)
+
+        return workingMagnitude
+    
+    def set_magnitude(self, newMagnitude:float=1): # This makes the magnitude of a collumb vector 1 by default, or a different value if specified
+        currentMagnitude = self.get_magnitude()
+
+        newContents = []
+
+        if currentMagnitude != 0:
+            ratio = newMagnitude / currentMagnitude
+
+            for content in self.contents:
+                newContents.append([content[0] * ratio])
+
+        else:
+            for content in self.contents:
+                newContents.append([0])
+        
+        return Matrix(newContents)
          
     def get_order(self):
         return self.order
@@ -726,7 +763,10 @@ ROOT = Abstract("Root")
 # have to reference these
 
 pygame.init()
-window = pygame.display.set_mode((320, 240))
+SCREENSIZE = (640, 480)
+SCREENSIZEFROMCENTER = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
+window = pygame.display.set_mode(SCREENSIZE)
+pygame.display.set_caption("yeentooth")
 clock = pygame.time.Clock()
 running = True
 
@@ -763,6 +803,8 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
     def set_albedo(self, albedo:tuple):
         self.albedo = albedo
 
+
+
 class Plane(Abstract):
     def __init__(self, 
                  name:str, 
@@ -790,7 +832,7 @@ class Plane(Abstract):
 
         for i in range(self.quadResolution[0]):
             for j in range(self.quadResolution[1]):
-                corner = (-0.5 + quadWidth * i, -0.5 + quadWidth * j)
+                corner = (-0.5 + quadWidth * i, -0.5 + quadHeight * j)
 
                 self.add_child_relative(Tri([[corner[0], 0, corner[1]],
                                              [corner[0], 0, corner[1] + quadHeight],
@@ -808,43 +850,99 @@ class Plane(Abstract):
 
         self.generate_plane()
 
-    def set_pattern_checkerboard(self, colour1:tuple, colour2:tuple):
+    def set_pattern_triangles(self, colour1:tuple, colour2:tuple):
         tris = self.get_children_with_tag("PlaneTri")
 
-        for i in range(len(tris), 4):
+        for i in range(0, len(tris), 2):
             tris[i].set_albedo(colour1)
-            tris[i+1].set_albedo(colour1)
-            tris[i+2].set_albedo(colour2)
-            tris[i+3].set_albedo(colour2)
+            tris[i+1].set_albedo(colour2)
 
-    def set_pattern_gradient(self, bottomLeft:tuple, bottomRight:tuple, topLeft:tuple, topRight:tuple): # This does not work
-        leftGap = ((topLeft[0] - bottomLeft[0]) / self.quadResolution[1],
-                   (topLeft[1] - bottomLeft[1]) / self.quadResolution[1],
-                   (topLeft[2] - bottomLeft[2]) / self.quadResolution[1])
-        
-        rightGap = ((topRight[0] - bottomRight[0]) / self.quadResolution[1],
-                   (topRight[1] - bottomRight[1]) / self.quadResolution[1],
-                   (topRight[2] - bottomRight[2]) / self.quadResolution[1])
-        
+    def set_pattern_gradient(self, left, right):
         tris = self.get_children_with_tag("PlaneTri")
-        
-        for i in range(self.quadResolution[0]):
-            leftColour = (bottomLeft[0] + (leftGap[0] * i), bottomLeft[1] + (leftGap[1] * i), bottomLeft[2] + (leftGap[2] * i))
-            rightColour = (bottomRight[0] + (rightGap[0] * i), bottomRight[1] + (rightGap[1] * i), bottomRight[2] + (rightGap[2] * i))
 
-            for j in range(self.quadResolution[1]):
-                
-                tris[i * self.quadResolution[0] + j].set_albedo(((rightColour[0] - leftColour[0] / self.quadResolution[1]) * j,
-                                                                 (rightColour[1] - leftColour[1] / self.quadResolution[1]) * j, 
-                                                                 (rightColour[2] - leftColour[2] / self.quadResolution[1]) * j))
+        step = []
+
+        for i in range(3):
+            step.append((left[i] - right[i]) / self.quadResolution[1])
+
+        for i in range(self.quadResolution[1]):
+            for j in range(self.quadResolution[1] * 2):
+                print((left[0] + j * step[0], left[1] + j * step[1], left[2] + j * step[2]))
+                tris[i * self.quadResolution[1] + j].set_albedo((left[0] + j * step[0], left[1] + j * step[1], left[2] + j * step[2]))
+
+
+
+class Cube(Abstract):
+    def __init__(self, 
+                 name:str, 
+                 colour:tuple, 
+                 lit:bool=None,
+                 location:Matrix=None, 
+                 distortion:Matrix=None,
+                 tags:list[str]=None,
+                 script=None):
+        super().__init__(name, 
+                         location if location else ORIGIN, 
+                         distortion if distortion else I3,
+                         tags if tags else [],
+                         script)
+        self.colour = colour
+        self.lit = lit if lit is not None else False
+
+        self.generate_cube()
+
+    def generate_cube(self):
+        # Front
+        self.add_child_relative(Tri([[-0.5,-0.5,-0.5],
+                                     [-0.5,0.5,-0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[0.5,0.5,-0.5],
+                                     [-0.5,0.5,-0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+        # Back
+        self.add_child_relative(Tri([[0.5,0.5,0.5],
+                                     [-0.5,0.5,0.5],
+                                     [0.5,-0.5,0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[-0.5,-0.5,0.5],
+                                     [-0.5,0.5,0.5],
+                                     [0.5,-0.5,0.5]], self.colour, self.lit))
+        # Left
+        self.add_child_relative(Tri([[-0.5,-0.5,0.5],
+                                     [-0.5,0.5,0.5],
+                                     [-0.5,-0.5,-0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[-0.5,0.5,-0.5],
+                                     [-0.5,0.5,0.5],
+                                     [-0.5,-0.5,-0.5]], self.colour, self.lit))
+        # Right
+        self.add_child_relative(Tri([[0.5,0.5,-0.5],
+                                     [0.5,0.5,0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[0.5,-0.5,0.5],
+                                     [0.5,0.5,0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+
 
         
 class Camera(Abstract):
-    def __init__(self, name:str, location, distortion, perspectiveConstant:float):
+    def __init__(self, name:str, location, distortion, fieldOfView:float):
         super().__init__(name, location, distortion, ["Camera"])
-        self.perspectiveConstant = perspectiveConstant
+
+        self.perspectiveConstant = math.tan((fieldOfView / 180) * math.pi / 2) / SCREENSIZEFROMCENTER[1]
+        # This converts the field of view into radians, then finds the perspective
+        # constant needed to get that field of view.
+
+        # To figure out this process, let's imagine a tower exactly one unit
+        # away from the camera, so we're only dividing by the constant (1 * constant)
+
+        # We can find half the number of units the fov will reach up the tower by taking
+        # tan(half the fov), because it makes a right angled triangle and tan(theta) 
+        # equals the opposite over the adjacent.
+
+        # Therefore, we know tan(theta) / perspectiveConstant = 1/2 the resolution
+
+        # Rearrange to make perspectiveConstant = tan(theta) / half the resolution
         
-    def project_tri(self, cameraLocationMatrix:Matrix, inversion:Matrix, tri:Tri, lights:list[Abstract]=None):
+    def project_tri(self, cameraLocationMatrix:Matrix, inversion:Matrix, tri:Tri, depthBuffer, lights:list[Abstract]=None):
         triLocation = tri.objectiveLocation.get_contents()
 
         triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],  # This is the tri's location
@@ -864,21 +962,27 @@ class Camera(Abstract):
                 pass
 
             screenSpaceCoordinates = (
-                (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 160, 
-                -triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + 120),
+                (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
+                -triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]),
                 
-                (triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 160, 
-                -triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + 120),
+                (triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
+                -triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]),
                 
-                (triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 160, 
-                -triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + 120)
+                (triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
+                -triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])
             )
-            
+
+            averageDepth = (triCameraVertices[2][0] + triCameraVertices[2][1] + triCameraVertices[2][2]) / 3
+
+            triDepth = clamp(math.floor(averageDepth), 0, 255)
+            fineTriDepth = math.floor(averageDepth % 1 * 100)
+
+            pygame.draw.polygon(depthBuffer, (triDepth, fineTriDepth, 0), screenSpaceCoordinates)
             pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
         
-    def rasterize(self):
+    def rasterize(self, depthBuffer):
         tris = ROOT.get_substracts_of_type(Tri)
         
         inversion = self.objectiveDistortion.get_3x3_inverse()
@@ -888,7 +992,13 @@ class Camera(Abstract):
                                  [location[2][0], location[2][0], location[2][0]]])
         
         for tri in tris:
-            self.project_tri(locationMatrix, inversion, tri)
+            self.project_tri(locationMatrix, inversion, tri, depthBuffer)
+
+    def render(self):
+        depthBuffer = pygame.Surface(SCREENSIZE)
+        depthBuffer.fill((255, 255, 255))
+
+        self.rasterize(depthBuffer)
 
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
@@ -903,24 +1013,35 @@ origin.add_child_relative(player)
 
 camera = Camera("Camera", Matrix([[0],
                                   [0],
-                                  [0]]), I3, 0.005)
+                                  [0]]), I3, 60)
 player.add_child_relative(camera)
 
-mesh = Plane("Ground", (8, 8), (0, 0, 0), True, Matrix([[0],
-                                                        [-1],
-                                                        [0]]), Matrix([[2, 0, 0],
-                                                                       [0, 2, 0],
-                                                                       [0, 0, 2]]))
-environment.add_child_relative(mesh) 
+cube = Cube("Cube", (200, 200, 200), True)
+environment.add_child_relative(cube)
 
-mesh.set_pattern_gradient((255, 255, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255))
+floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
+                                                        [-1],
+                                                        [0]]), Matrix([[4, 0, 0],
+                                                                       [0, 4, 0],
+                                                                       [0, 0, 4]]))
+environment.add_child_relative(floor) 
+
+wall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
+                                                        [1],
+                                                        [2]]), Matrix([[4, 0, 0],
+                                                                       [0, 0, 4],
+                                                                       [0, -4, 0]]))
+environment.add_child_relative(wall)
+
+floor.set_pattern_triangles((255, 255, 0), (0, 255, 255))
+wall.set_pattern_triangles((255, 0, 255), (20, 20, 20))
 
 
 
 # ---------------- MAIN LOOP ----------------
 
-movementSpeed = 2
-lookSpeed = 1
+movementSpeed = 4
+lookSpeed = 2
 
 frameDelta = 0
 
@@ -933,24 +1054,21 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             
+    playerMovement = [[0],
+                      [0],
+                      [0]]
+    
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w]:
-        player.translate_relative(Matrix([[0],
-                                    [0],
-                                    [movementSpeed * frameDelta]]))
+        playerMovement[2] = [1]
     if keys[pygame.K_s]:
-        player.translate_relative(Matrix([[0],
-                                    [0],
-                                    [-movementSpeed * frameDelta]]))
-        
+        playerMovement[2] = [-1]
     if keys[pygame.K_a]:
-        player.translate_relative(Matrix([[-movementSpeed * frameDelta],
-                                    [0],
-                                    [0]]))
+        playerMovement[0] = [-1]
     if keys[pygame.K_d]:
-        player.translate_relative(Matrix([[movementSpeed * frameDelta],
-                                    [0],
-                                    [0]]))
+        playerMovement[0] = [1]
+
+    player.translate_relative(Matrix(playerMovement).set_magnitude(movementSpeed * frameDelta))
         
     if keys[pygame.K_RIGHT]:
         player.rotate_euler_radians(0, lookSpeed * frameDelta, 0)
@@ -961,10 +1079,12 @@ while running:
         camera.rotate_euler_radians(-lookSpeed * frameDelta, 0, 0)
     if keys[pygame.K_DOWN]:
         camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
+
+    cube.rotate_euler_radians(frameDelta, frameDelta, 0)
         
     window.fill((255, 255, 255))
 
-    camera.rasterize()
+    camera.render()
         
     frameDelta = time.time() - startTime
 
