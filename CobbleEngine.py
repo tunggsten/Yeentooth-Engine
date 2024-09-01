@@ -815,14 +815,14 @@ class Image(): # This is like a shitty fake version of pygame.Surface
         if 0 <= y <= self.resolution[1]:
             for i in range(x1, x2, 1 if x1 < x2 else -1):
                 if 0 <= i <= self.resolution[0]:
-                    self.contents[y][i] = pixelColor
+                    self.contents[y][i] = xolour
 
     def draw_horizontal_gradient_coloured_line(self, x1:int, x2:int, y:int, colour1:tuple, colour2:pygame.color):
         if 0 <= y <= self.resolution[1]:
             for i in range(x1, x2, 1 if x1 < x2 else -1):
                 if 0 <= i <= self.resolution[0]:
-                    pixelColor = self.interpolate_colour(colour1, colour2, (i - x1) / abs(x2 - x1))
-                    self.contents[y][i] = pixelColor
+                    pixelColour = self.interpolate_colour(colour1, colour2, (i - x1) / abs(x2 - x1))
+                    self.contents[y][i] = pixelColour
 
     def draw_flat_based_gradient_coloured_triangle(self, bottomLeft:tuple, bottomRight:tuple, point:tuple, colour1:tuple, colour2:tuple, colour3:tuple):
         height = point[1] - bottomLeft[1]
