@@ -770,6 +770,126 @@ pygame.display.set_caption("yeentooth")
 clock = pygame.time.Clock()
 running = True
 
+class Image(): # This is like a shitty fake version of pygame.Surface
+    def __init__(self, resolution:tuple, pixelSize:tuple, colorspace:bool):
+        self.resolution = resolution
+        self.pixelSize = pixelSize
+        self.colorspace = colorspace
+        
+        if colorspace:
+            pixel = (0, 0, 0)
+        else:
+            pixel = 0.0
+
+        self.contents = []
+        for row in range(resolution[1]):
+            self.contents.append([])
+            for pixel in range(resolution[0]):
+                self.contents[row].append((0, 0, 0) if colorspace else 0.0)
+
+    def set_resolution(self, resolution:tuple):
+        self.resolution = resolution
+
+        self.contents = [[self.colorspace] * self.resolution[0]] * self.resolution[1]
+    
+    def get_resolution(self):
+        return self.resolution
+    
+    def set_pixel_size(self, pixelSize:tuple):
+        self.pixelSize = pixelSize
+
+    def fill(self, value):
+        for row in self.contents:
+            for pixel in row:
+                pixel = value
+
+    def interpolate_colour(self, colour1:tuple, colour2:tuple, t:float):
+        return (math.floor(colour1[0] + (colour2[0] - colour1[0]) * abs(t)),
+                math.floor(colour1[1] + (colour2[1] - colour1[1]) * abs(t)),
+                math.floor(colour1[2] + (colour2[2] - colour1[2]) * abs(t)))
+    
+    def interpolate_value(self, float1:float, float2:float, t:float):
+        return float1 + (float2 - float1) * abs(t)
+    
+    def draw_horizontal_coloured_line(self, x1:int, x2:int, y:int, colour:tuple):
+        if 0 <= y <= self.resolution[1]:
+            for i in range(x1, x2, 1 if x1 < x2 else -1):
+                if 0 <= i <= self.resolution[0]:
+                    self.contents[y][i] = pixelColor
+
+    def draw_horizontal_gradient_coloured_line(self, x1:int, x2:int, y:int, colour1:tuple, colour2:pygame.color):
+        if 0 <= y <= self.resolution[1]:
+            for i in range(x1, x2, 1 if x1 < x2 else -1):
+                if 0 <= i <= self.resolution[0]:
+                    pixelColor = self.interpolate_colour(colour1, colour2, (i - x1) / abs(x2 - x1))
+                    self.contents[y][i] = pixelColor
+
+    def draw_flat_based_gradient_coloured_triangle(self, bottomLeft:tuple, bottomRight:tuple, point:tuple, colour1:tuple, colour2:tuple, colour3:tuple):
+        height = point[1] - bottomLeft[1]
+        leftToPoint = bottomLeft[0] - point[0]
+        rightToPoint = bottomRight[0] - point[0]
+        
+        print(height, leftToPoint, -1)
+        for y in range(bottomLeft[1], point[1], 1 if height > 0 else -1):
+            amountDone = abs((y - bottomLeft[1]) / height)
+
+            left = math.floor(bottomLeft[0] - (leftToPoint * amountDone))
+            right = math.floor(bottomRight[0] - (rightToPoint * amountDone))
+
+            self.draw_horizontal_gradient_coloured_line(left, right, y, 
+                                      self.interpolate_colour(colour1, colour3, amountDone), 
+                                      self.interpolate_colour(colour2, colour3, amountDone))
+
+    def draw_gradient_coloured_triangle(self, 
+                      vertex1:tuple,
+                      vertex2:tuple,
+                      vertex3:tuple,
+                      colour1:tuple,
+                      colour2:tuple,
+                      colour3:tuple):
+        # Find the middle vertex
+        heights = [vertex1[1], vertex2[1], vertex3]
+        if heights[0] > heights[1]:
+            if heights[0] > heights[2]:
+                if heights[1] > vertex3[2]:
+                    middle = vertex2
+                    others = [vertex1, vertex3]
+                else:
+                    middle = vertex3
+                    others = [vertex1, vertex2]
+            else:
+                middle = vertex1
+                others = [vertex2, vertex3]
+        else:
+            if heights[0] < heights[2]:
+                if heights[1] < vertex3[2]:
+                    middle = vertex2
+                    others = [vertex1, vertex3]
+                else:
+                    middle = vertex3
+                    others = [vertex1, vertex2]
+            else:
+                middle = vertex1
+                others = [vertex2, vertex3]
+
+        height = abs(others[0][1] - others[1][1]) # The height of the triangle
+
+        sideRange = others[0][0] - others[1][0] # The horizontal distance between the top and bottom triangles
+
+        self.draw_flat_based_gradient_coloured_triangle()
+
+        
+                
+
+    def render_image(self, target:pygame.Surface, position:tuple):
+        for row in range(position[1], position[1] + self.resolution[1]):
+            for pixel in range(position[0], position[0] + self.resolution[0]):
+                pygame.draw.rect(target, 
+                                 self.contents[row][pixel], 
+                                 pygame.Rect((pixel * self.pixelSize[0], row * self.pixelSize[1]), self.pixelSize))
+
+DISPLAY = Image((64, 48), (10, 10), tuple[int])
+
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
     def __init__(self, 
                  vertices:list[list[float]], 
@@ -867,7 +987,6 @@ class Plane(Abstract):
 
         for i in range(self.quadResolution[1]):
             for j in range(self.quadResolution[1] * 2):
-                print((left[0] + j * step[0], left[1] + j * step[1], left[2] + j * step[2]))
                 tris[i * self.quadResolution[1] + j].set_albedo((left[0] + j * step[0], left[1] + j * step[1], left[2] + j * step[2]))
 
 
@@ -920,6 +1039,20 @@ class Cube(Abstract):
         self.add_child_relative(Tri([[0.5,-0.5,0.5],
                                      [0.5,0.5,0.5],
                                      [0.5,-0.5,-0.5]], self.colour, self.lit))
+        # Top
+        self.add_child_relative(Tri([[-0.5,0.5,-0.5],
+                                     [-0.5,0.5,0.5],
+                                     [0.5,0.5,-0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[0.5,0.5,0.5],
+                                     [-0.5,0.5,0.5],
+                                     [0.5,0.5,-0.5]], self.colour, self.lit))
+        # Bottom
+        self.add_child_relative(Tri([[-0.5,-0.5,-0.5],
+                                     [-0.5,-0.5,0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+        self.add_child_relative(Tri([[0.5,-0.5,0.5],
+                                     [-0.5,-0.5,0.5],
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
 
 
         
@@ -962,23 +1095,17 @@ class Camera(Abstract):
                 pass
 
             screenSpaceCoordinates = (
-                (triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
-                -triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]),
+                (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])),
                 
-                (triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
-                -triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]),
+                (math.floor(triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                math.floor(-triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])),
                 
-                (triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0], 
-                -triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])
+                (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
             )
 
-            averageDepth = (triCameraVertices[2][0] + triCameraVertices[2][1] + triCameraVertices[2][2]) / 3
-
-            triDepth = clamp(math.floor(averageDepth), 0, 255)
-            fineTriDepth = math.floor(averageDepth % 1 * 100)
-
-            pygame.draw.polygon(depthBuffer, (triDepth, fineTriDepth, 0), screenSpaceCoordinates)
-            pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
+            #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
         
@@ -993,12 +1120,21 @@ class Camera(Abstract):
         
         for tri in tris:
             self.project_tri(locationMatrix, inversion, tri, depthBuffer)
+        
+        for i in range(200):
+            DISPLAY.draw_flat_based_gradient_coloured_triangle((10, 5), (40, 5), (-5, 30), (255, 0, 0), (0, 255, 0), (0, 0, 255))
+
+        DISPLAY.render_image(window, (0, 0))
+
+
 
     def render(self):
         depthBuffer = pygame.Surface(SCREENSIZE)
-        depthBuffer.fill((255, 255, 255))
+        depthBuffer.fill((255, 255, 0))
 
         self.rasterize(depthBuffer)
+
+        #window.blit(depthBuffer, (0, 0))
 
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
@@ -1019,6 +1155,20 @@ player.add_child_relative(camera)
 cube = Cube("Cube", (200, 200, 200), True)
 environment.add_child_relative(cube)
 
+leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
+                                                              [1],
+                                                              [0]]), Matrix([[0, 4, 0],
+                                                                             [-4, 0, 0],
+                                                                             [0, 0, 4]]))
+environment.add_child_relative(leftWall)
+
+backWall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
+                                                        [1],
+                                                        [2]]), Matrix([[4, 0, 0],
+                                                                       [0, 0, 4],
+                                                                       [0, -4, 0]]))
+environment.add_child_relative(backWall)
+
 floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
                                                         [-1],
                                                         [0]]), Matrix([[4, 0, 0],
@@ -1026,15 +1176,9 @@ floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
                                                                        [0, 0, 4]]))
 environment.add_child_relative(floor) 
 
-wall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
-                                                        [1],
-                                                        [2]]), Matrix([[4, 0, 0],
-                                                                       [0, 0, 4],
-                                                                       [0, -4, 0]]))
-environment.add_child_relative(wall)
-
 floor.set_pattern_triangles((255, 255, 0), (0, 255, 255))
-wall.set_pattern_triangles((255, 0, 255), (20, 20, 20))
+backWall.set_pattern_triangles((255, 0, 255), (20, 20, 20))
+leftWall.set_pattern_triangles((255, 0, 0), (0, 255, 0))
 
 
 
