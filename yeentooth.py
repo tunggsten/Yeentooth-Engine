@@ -564,8 +564,7 @@ class Abstract:
         
         if self.parent:
             self.parent.children.remove(self)
-        
-        del self
+            del self
 
     
 
@@ -1021,15 +1020,67 @@ class Tri(Abstract): # This should be a child to an abstract which will serve as
     def set_albedo(self, albedo:tuple):
         self.albedo = albedo
         
-class GradientTri(Tri):
+
+
+class GradientTri(Tri): # This is just a tri with coloured vertices instead of a flat colour
     def __init__(self,
                  vertices:list[list[float]], 
-                 albedo:tuple, lit:bool, tags:list[str]=None):
-        pass
+                 albedo1:tuple,
+                 albedo2:tuple,
+                 albedo3:tuple,
+                 lit:bool, 
+                 tags:list[str]=None):
+        super().__init__(vertices, (0, 0, 0), lit, tags)
+
+        self.albedo1 = albedo1
+        self.albedo2 = albedo2
+        self.albedo3 = albedo3
+
+    def get_albedo1(self):
+        return self.albedo1
+    
+    def get_albedo1(self, albedo1:tuple):
+        self.albedo1 = albedo1
+
+    def get_albedo2(self):
+        return self.albedo2
+    
+    def get_albedo2(self, albedo2:tuple):
+        self.albedo1 = albedo2
+
+    def get_albedo3(self):
+        return self.albedo3
+    
+    def get_albedo3(self, albedo3:tuple):
+        self.albedo1 = albedo3
 
 
 
-class Plane(Abstract):
+class Mesh(Abstract):
+    def __init__(self, 
+                 name:str=None,
+                 location:Matrix=None, 
+                 distortion:Matrix=None, 
+                 tags:list[str]=None,
+                 script=None,
+                 parent=None, 
+                 children=None):
+        super().__init__(name, location, distortion, tags, script, parent, children)
+    
+    def change_tris_to_gradient(self, colour1, colour2, colour3):
+        for tri in self.get_substracts_of_type(Tri):
+            self.add_child_relative(GradientTri(tri.vertices.get_transpose().get_contents(), colour1, colour2, colour3, tri.lit))
+            tri.kill_self_and_substracts()
+            del tri
+    
+    def change_tris_to_flat_colour(self, colour):
+        for tri in self.get_substracts_of_type(GradientTri):
+            self.add_child_relative(Tri(tri.vertices.get_transpose().get_contents(), colour, tri.lit))
+            tri.kill_self_and_substracts()
+            del tri
+
+
+class Plane(Mesh):
     def __init__(self, 
                  name:str, 
                  quadResolution:tuple,
@@ -1095,7 +1146,7 @@ class Plane(Abstract):
 
 
 
-class Cube(Abstract):
+class Cube(Mesh):
     def __init__(self, 
                  name:str, 
                  colour:tuple, 
@@ -1179,7 +1230,7 @@ class Camera(Abstract):
 
         # Rearrange to make perspectiveConstant = tan(theta) / half the resolution
         
-    def project_tri(self, cameraLocationMatrix:Matrix, inversion:Matrix, tri:Tri, depthBuffer, lights:list[Abstract]=None):
+    def project_tri(self, cameraLocationMatrix:Matrix, inversion:Matrix, tri, depthBuffer, lights:list[Abstract]=None):
         triLocation = tri.objectiveLocation.get_contents()
 
         triLocationMatrix = Matrix([[triLocation[0][0], triLocation[0][0], triLocation[0][0]],  # This is the tri's location
@@ -1210,16 +1261,22 @@ class Camera(Abstract):
             vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeX), 
                        math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeY))
 
-            
-            DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
-                                           depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
-                                           tri.albedo)
+            if type(tri) == GradientTri:
+                DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
+                                               depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                               tri.albedo1, tri.albedo2, tri.albedo3)
+
+            else:
+                DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
+                                               depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                               tri.albedo)
+                
             #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
         
     def rasterize(self):
-        tris = ROOT.get_substracts_of_type(Tri)
+        tris = ROOT.get_substracts_of_type(Tri) + ROOT.get_substracts_of_type(GradientTri)
         
         inversion = self.objectiveDistortion.get_3x3_inverse()
         location = self.objectiveLocation.get_contents()
@@ -1237,7 +1294,8 @@ class Camera(Abstract):
 
 
 
-    def render(self):self.rasterize()
+    def render(self):
+        self.rasterize()
 
         #window.blit(depthBuffer, (0, 0))
 
@@ -1259,6 +1317,8 @@ player.add_child_relative(camera)
 
 cube = Cube("Cube", (200, 200, 200), True)
 environment.add_child_relative(cube)
+
+cube.change_tris_to_gradient((255, 0, 0), (0, 255, 0), (0, 0, 255))
 
 leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
                                                               [1],
