@@ -18,6 +18,7 @@ def clamp(val:float, min:float, max:float): # the math library didn't have a fun
         return val
 
 
+
 class Matrix:  
     def __init__(self, contents: list[list[float]]): # All the functions in this class are slower than my 
                                                      # grandma's metabolism and she's dead.
@@ -799,9 +800,9 @@ class Image(): # This is like a shitty fake version of pygame.Surface
         self.pixelSize = pixelSize
 
     def fill(self, value):
-        for row in self.contents:
-            for pixel in row:
-                pixel = value
+        for i in range(self.resolution[1]):
+            for j in range(self.resolution[0]):
+                self.contents[i][j] = value
 
     def interpolate_colour(self, colour1:tuple, colour2:tuple, t:float):
         return (math.floor(colour1[0] + (colour2[0] - colour1[0]) * abs(t)),
@@ -810,83 +811,113 @@ class Image(): # This is like a shitty fake version of pygame.Surface
     
     def interpolate_value(self, float1:float, float2:float, t:float):
         return float1 + (float2 - float1) * abs(t)
-    
-    def draw_horizontal_coloured_line(self, x1:int, x2:int, y:int, colour:tuple):
-        if 0 <= y <= self.resolution[1]:
-            for i in range(x1, x2, 1 if x1 < x2 else -1):
-                if 0 <= i <= self.resolution[0]:
-                    self.contents[y][i] = xolour
 
-    def draw_horizontal_gradient_coloured_line(self, x1:int, x2:int, y:int, colour1:tuple, colour2:pygame.color):
-        if 0 <= y <= self.resolution[1]:
+    def draw_horizontal_coloured_line(self, x1:int, x2:int, y:int, colour1:tuple, colour2:tuple=None, depthBuffer:Image=None):
+        if 0 <= y < self.resolution[1]:
             for i in range(x1, x2, 1 if x1 < x2 else -1):
-                if 0 <= i <= self.resolution[0]:
-                    pixelColour = self.interpolate_colour(colour1, colour2, (i - x1) / abs(x2 - x1))
-                    self.contents[y][i] = pixelColour
+                if 0 <= i < self.resolution[0]:
+                    if colour2:
+                        pixelColour = self.interpolate_colour(colour1, colour2, (i - x1) / abs(x2 - x1))
+                        self.contents[y][i] = pixelColour
+                    else:
+                        self.contents[y][i] = colour1
 
-    def draw_flat_based_gradient_coloured_triangle(self, bottomLeft:tuple, bottomRight:tuple, point:tuple, colour1:tuple, colour2:tuple, colour3:tuple):
+    def draw_flat_based_coloured_triangle(self, 
+                                                   bottomLeft:tuple, 
+                                                   bottomRight:tuple, 
+                                                   point:tuple, 
+                                                   colour1:tuple, 
+                                                   colour2:tuple=None, 
+                                                   colour3:tuple=None,
+                                                   depthBuffer:Image=None):
         height = point[1] - bottomLeft[1]
         leftToPoint = bottomLeft[0] - point[0]
         rightToPoint = bottomRight[0] - point[0]
         
-        print(height, leftToPoint, -1)
         for y in range(bottomLeft[1], point[1], 1 if height > 0 else -1):
             amountDone = abs((y - bottomLeft[1]) / height)
 
             left = math.floor(bottomLeft[0] - (leftToPoint * amountDone))
             right = math.floor(bottomRight[0] - (rightToPoint * amountDone))
 
-            self.draw_horizontal_gradient_coloured_line(left, right, y, 
-                                      self.interpolate_colour(colour1, colour3, amountDone), 
-                                      self.interpolate_colour(colour2, colour3, amountDone))
+            if colour2:
+                self.draw_horizontal_coloured_line(left, right, y, 
+                                        self.interpolate_colour(colour1, colour3, amountDone), 
+                                        self.interpolate_colour(colour2, colour3, amountDone))
+            else:
+                self.draw_horizontal_coloured_line(left, right, y, colour1)
 
-    def draw_gradient_coloured_triangle(self, 
+    def draw_coloured_triangle(self, 
                       vertex1:tuple,
                       vertex2:tuple,
                       vertex3:tuple,
                       colour1:tuple,
-                      colour2:tuple,
-                      colour3:tuple):
+                      colour2:tuple=None,
+                      colour3:tuple=None,
+                      depthBuffer:Image=None):
         
         # Find the middle vertex
         heights = [vertex1[1], vertex2[1], vertex3[1]]
-        if heights[0] > heights[1]:
-            if heights[0] > heights[2]:
-                if heights[1] > heights[2]:
-                    vertices = [vertex1, vertex2, vertex3]
-                    colours = [colour1, colour2, colour3]
+        
+        if colour2:
+            if heights[0] > heights[1]:
+                if heights[0] > heights[2]:
+                    if heights[1] > heights[2]:
+                        vertices = [vertex1, vertex2, vertex3]
+                        colours = [colour1, colour2, colour3]
+                    else:
+                        vertices = [vertex1, vertex3, vertex2]
+                        colours = [colour1, colour3, colour2]
                 else:
-                    vertices = [vertex1, vertex3, vertex2]
-                    colours = [colour1, colour3, colour2]
+                    vertices = [vertex3, vertex1, vertex2]
+                    colours = [colour3, colour1, colour2]
             else:
-                vertices = [vertex3, vertex1, vertex2]
-                colours = [colour3, colour1, colour2]
-        else:
-            if heights[0] < heights[2]:
-                if heights[1] < heights[2]:
-                    vertices = [vertex3, vertex2, vertex1]
-                    colours = [colour3, colour2, colour1]
+                if heights[0] < heights[2]:
+                    if heights[1] < heights[2]:
+                        vertices = [vertex3, vertex2, vertex1]
+                        colours = [colour3, colour2, colour1]
+                    else:
+                        vertices = [vertex2, vertex3, vertex1]
+                        colours = [colour2, colour3, colour1]
                 else:
-                    vertices = [vertex2, vertex3, vertex1]
-                    colours = [colour2, colour3, colour1]
-            else:
-                vertices = [vertex2, vertex1, vertex3]
-                colours = [colour2, colour1, colour3]
-
-        height = vertices[2][1] - vertices[0][1] # The height of the triangle
-
-        sideRange = vertices[2][0] - vertices[0][0] # The horizontal distance between the top and bottom triangles
-
-        if height != 0:
-            sliceProportion = abs(vertices[1][1] / height)
+                    vertices = [vertex2, vertex1, vertex3]
+                    colours = [colour2, colour1, colour3]
         else:
-            sliceProportion = 0.5
+            if heights[0] > heights[1]:
+                if heights[0] > heights[2]:
+                    if heights[1] > heights[2]:
+                        vertices = [vertex1, vertex2, vertex3]
+                    else:
+                        vertices = [vertex1, vertex3, vertex2]
+                else:
+                    vertices = [vertex3, vertex1, vertex2]
+            else:
+                if heights[0] < heights[2]:
+                    if heights[1] < heights[2]:
+                        vertices = [vertex3, vertex2, vertex1]
+                    else:
+                        vertices = [vertex2, vertex3, vertex1]
+                else:
+                    vertices = [vertex2, vertex1, vertex3]
 
-        sliceCoordinate = (vertices[0][0] - math.floor(sideRange * sliceProportion), vertices[1][1])
-        sliceColour = self.interpolate_colour(colours[0], colours[2], sliceProportion)
+        triangleHeight = vertices[0][1] - vertices[2][1]
+        topToBottomHorizontal = vertices[0][0] - vertices[2][0]
 
-        self.draw_flat_based_gradient_coloured_triangle(vertices[1], sliceCoordinate, vertices[0], colours[1], sliceColour, colours[0])
-        self.draw_flat_based_gradient_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], colours[1], sliceColour, colours[2])
+        if triangleHeight > 0:
+            sliceAmount = (vertices[1][1] - vertices[2][1]) / triangleHeight
+        else:
+            sliceAmount = 0
+        
+        sliceCoordinate = (math.floor(vertices[2][0] + (topToBottomHorizontal * (sliceAmount))), vertices[1][1])
+        
+        if colour2:
+            sliceColour = self.interpolate_colour(colours[0], colours[2], 1 - sliceAmount)
+
+            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], colours[1], sliceColour, colours[2])
+            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[0], colours[1], sliceColour, colours[0])
+        else:
+            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], colour1)
+            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[0], colour1)
         
                 
 
@@ -897,7 +928,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                  self.contents[row][pixel], 
                                  pygame.Rect((pixel * self.pixelSize[0], row * self.pixelSize[1]), self.pixelSize))
 
-DISPLAY = Image((64, 48), (10, 10), tuple[int])
+DISPLAY = Image((128, 96), (5, 5), tuple[int])
 
 class Tri(Abstract): # This should be a child to an abstract which will serve as a wrapper for a group of polys.
     def __init__(self, 
@@ -1069,7 +1100,7 @@ class Camera(Abstract):
     def __init__(self, name:str, location, distortion, fieldOfView:float):
         super().__init__(name, location, distortion, ["Camera"])
 
-        self.perspectiveConstant = math.tan((fieldOfView / 180) * math.pi / 2) / 24
+        self.perspectiveConstant = math.tan((fieldOfView / 180) * math.pi / 2) / (DISPLAY.resolution[1] / 2)
         # This converts the field of view into radians, then finds the perspective
         # constant needed to get that field of view.
 
@@ -1102,19 +1133,21 @@ class Camera(Abstract):
 
             if tri.lit and lights: # Calculates normal and changes brightness accordingly
                 pass
+            
+            displaySizeX = DISPLAY.resolution[0] / 2
+            displaySizeY = DISPLAY.resolution[1] / 2
 
-            vertex1 = (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                       math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
+            vertex1 = (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + displaySizeX), 
+                       math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + displaySizeY))
             
-            vertex2 = (math.floor(triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                       math.floor(-triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
+            vertex2 = (math.floor(triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + displaySizeX), 
+                       math.floor(-triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + displaySizeY))
             
-            vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                       math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
-            
-            print(vertex1, vertex2, vertex3)
+            vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeX), 
+                       math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeY))
 
-            DISPLAY.draw_gradient_coloured_triangle(vertex1, vertex2, vertex3, (255, 0, 0), (0, 255, 0), (0, 0, 255))
+            
+            DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, tri.albedo)
             #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
@@ -1127,6 +1160,8 @@ class Camera(Abstract):
         locationMatrix = Matrix([[location[0][0], location[0][0], location[0][0]],
                                  [location[1][0], location[1][0], location[1][0]],
                                  [location[2][0], location[2][0], location[2][0]]])
+        
+        DISPLAY.fill((255, 255, 255))
         
         for tri in tris:
             self.project_tri(locationMatrix, inversion, tri, depthBuffer)
