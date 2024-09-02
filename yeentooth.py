@@ -810,6 +810,8 @@ class Image(): # This is like a shitty fake version of pygame.Surface
     
     def interpolate_value(self, float1:float, float2:float, t:float):
         return float1 + (float2 - float1) * abs(t)
+    
+    
 
     def draw_horizontal_coloured_line(self, 
                                       x1:int, 
@@ -826,7 +828,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                     interpolationAmount = (i - x1) / abs(x2 - x1)
                     depth = self.interpolate_value(depth1, depth2, interpolationAmount)
                     
-                    if depth < depthBuffer.contents[y][i]:
+                    if depth <= depthBuffer.contents[y][i]:
                         if colour2:
                             pixelColour = self.interpolate_colour(colour1, colour2, interpolationAmount)
                             self.contents[y][i] = pixelColour
@@ -834,6 +836,8 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                         else:
                             self.contents[y][i] = colour1
                             depthBuffer.contents[y][i] = depth
+                            
+                            
 
     def draw_flat_based_coloured_triangle(self, 
                                           bottomLeft:tuple, 
@@ -865,6 +869,8 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                         self.interpolate_colour(colour2, colour3, amountDone))
             else:
                 self.draw_horizontal_coloured_line(left, right, y, depthBuffer, leftDepth, rightDepth, colour1)
+                
+                
 
     def draw_coloured_triangle(self, 
                                vertex1:tuple,
@@ -981,7 +987,9 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                  pygame.Rect((pixel * self.pixelSize[0], row * self.pixelSize[1]), self.pixelSize))
 
 
+
 # This will be the colour display triangles get rendered to
+
 DISPLAY = Image((128, 96), (5, 5), True)
 DEPTHBUFFER = Image((128, 96), (5, 5), False)
 
@@ -1318,7 +1326,7 @@ player.add_child_relative(camera)
 cube = Cube("Cube", (200, 200, 200), True)
 environment.add_child_relative(cube)
 
-cube.change_tris_to_gradient((255, 0, 0), (0, 255, 0), (0, 0, 255))
+cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
 
 leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
                                                               [1],
@@ -1341,9 +1349,9 @@ floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
                                                                        [0, 0, 4]]))
 environment.add_child_relative(floor) 
 
-floor.set_pattern_triangles((255, 255, 0), (0, 255, 255))
-backWall.set_pattern_triangles((255, 0, 255), (20, 20, 20))
-leftWall.set_pattern_triangles((255, 0, 0), (0, 255, 0))
+floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
+backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
+leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
 
 
 
