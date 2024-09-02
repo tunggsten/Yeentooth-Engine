@@ -847,37 +847,46 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                       colour1:tuple,
                       colour2:tuple,
                       colour3:tuple):
+        
         # Find the middle vertex
-        heights = [vertex1[1], vertex2[1], vertex3]
+        heights = [vertex1[1], vertex2[1], vertex3[1]]
         if heights[0] > heights[1]:
             if heights[0] > heights[2]:
-                if heights[1] > vertex3[2]:
-                    middle = vertex2
-                    others = [vertex1, vertex3]
+                if heights[1] > heights[2]:
+                    vertices = [vertex1, vertex2, vertex3]
+                    colours = [colour1, colour2, colour3]
                 else:
-                    middle = vertex3
-                    others = [vertex1, vertex2]
+                    vertices = [vertex1, vertex3, vertex2]
+                    colours = [colour1, colour3, colour2]
             else:
-                middle = vertex1
-                others = [vertex2, vertex3]
+                vertices = [vertex3, vertex1, vertex2]
+                colours = [colour3, colour1, colour2]
         else:
             if heights[0] < heights[2]:
-                if heights[1] < vertex3[2]:
-                    middle = vertex2
-                    others = [vertex1, vertex3]
+                if heights[1] < heights[2]:
+                    vertices = [vertex3, vertex2, vertex1]
+                    colours = [colour3, colour2, colour1]
                 else:
-                    middle = vertex3
-                    others = [vertex1, vertex2]
+                    vertices = [vertex2, vertex3, vertex1]
+                    colours = [colour2, colour3, colour1]
             else:
-                middle = vertex1
-                others = [vertex2, vertex3]
+                vertices = [vertex2, vertex1, vertex3]
+                colours = [colour2, colour1, colour3]
 
-        height = abs(others[0][1] - others[1][1]) # The height of the triangle
+        height = vertices[2][1] - vertices[0][1] # The height of the triangle
 
-        sideRange = others[0][0] - others[1][0] # The horizontal distance between the top and bottom triangles
+        sideRange = vertices[2][0] - vertices[0][0] # The horizontal distance between the top and bottom triangles
 
-        self.draw_flat_based_gradient_coloured_triangle()
+        if height != 0:
+            sliceProportion = abs(vertices[1][1] / height)
+        else:
+            sliceProportion = 0.5
 
+        sliceCoordinate = (vertices[0][0] - math.floor(sideRange * sliceProportion), vertices[1][1])
+        sliceColour = self.interpolate_colour(colours[0], colours[2], sliceProportion)
+
+        self.draw_flat_based_gradient_coloured_triangle(vertices[1], sliceCoordinate, vertices[0], colours[1], sliceColour, colours[0])
+        self.draw_flat_based_gradient_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], colours[1], sliceColour, colours[2])
         
                 
 
@@ -1060,7 +1069,7 @@ class Camera(Abstract):
     def __init__(self, name:str, location, distortion, fieldOfView:float):
         super().__init__(name, location, distortion, ["Camera"])
 
-        self.perspectiveConstant = math.tan((fieldOfView / 180) * math.pi / 2) / SCREENSIZEFROMCENTER[1]
+        self.perspectiveConstant = math.tan((fieldOfView / 180) * math.pi / 2) / 24
         # This converts the field of view into radians, then finds the perspective
         # constant needed to get that field of view.
 
@@ -1094,17 +1103,18 @@ class Camera(Abstract):
             if tri.lit and lights: # Calculates normal and changes brightness accordingly
                 pass
 
-            screenSpaceCoordinates = (
-                (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])),
-                
-                (math.floor(triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                math.floor(-triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1])),
-                
-                (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
-                math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
-            )
+            vertex1 = (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                       math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
+            
+            vertex2 = (math.floor(triCameraVertices[0][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                       math.floor(-triCameraVertices[1][1] / (triCameraVertices[2][1] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
+            
+            vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[0]), 
+                       math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + SCREENSIZEFROMCENTER[1]))
+            
+            print(vertex1, vertex2, vertex3)
 
+            DISPLAY.draw_gradient_coloured_triangle(vertex1, vertex2, vertex3, (255, 0, 0), (0, 255, 0), (0, 0, 255))
             #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
@@ -1120,9 +1130,6 @@ class Camera(Abstract):
         
         for tri in tris:
             self.project_tri(locationMatrix, inversion, tri, depthBuffer)
-        
-        for i in range(200):
-            DISPLAY.draw_flat_based_gradient_coloured_triangle((10, 5), (40, 5), (-5, 30), (255, 0, 0), (0, 255, 0), (0, 0, 255))
 
         DISPLAY.render_image(window, (0, 0))
 
