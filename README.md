@@ -7,7 +7,7 @@
 
 ## **Features:**
 
- * Intuitive Object System
+ * Object System
 
 In Yeentooth, everything is built up of Abstracts. 
 Abstracts are points in 3D space, which have a set of axes their children lie and move on. Scenes in Yeentooth games are heirachies of abstracts.
