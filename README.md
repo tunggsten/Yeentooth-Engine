@@ -37,5 +37,5 @@ These are arguably fundamental building blocks for most games, so these are in p
 Abstract heirachies will be able to be exported as Hyperstract (.hstrct) files, which can then be instantiated into other heirachies, which ultimately mesh together into your game.
 
 
-## Just to note, I'm probably only going to do as much of the above that's required to get the marks I need. However, working on this project has been pretty fun, so I *might* continue on it in the future.
+## Just to note, I'm probably only going to do as much of the above that's required to get the marks I need. That being said, working on this project has been pretty fun, so I *might* continue on it in the future, time allowing.
 
