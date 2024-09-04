@@ -1,5 +1,4 @@
 import pygame
-from tkinter import *
 
 import math
 import random
@@ -522,6 +521,13 @@ class Abstract:
     def get_children(self):
         return self.children
     
+    def get_substracts(self):
+        substracts = self.get_children()
+        for child in self.children:
+            substracts += child.get_substracts()
+
+        return substracts
+    
     def add_child_relative(self, newChild):
         print(f"Adding child: {newChild.get_name()} at {newChild.objectiveLocation}")
         if newChild.parent:
@@ -817,7 +823,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                       x1:int, 
                                       x2:int, 
                                       y:int,
-                                      depthBuffer:Image, 
+                                      depthBuffer, 
                                       depth1:float,
                                       depth2:float, 
                                       colour1:tuple, 
@@ -828,7 +834,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                     interpolationAmount = (i - x1) / abs(x2 - x1)
                     depth = self.interpolate_value(depth1, depth2, interpolationAmount)
                     
-                    if depth <= depthBuffer.contents[y][i]:
+                    if depth < depthBuffer.contents[y][i]:
                         if colour2:
                             pixelColour = self.interpolate_colour(colour1, colour2, interpolationAmount)
                             self.contents[y][i] = pixelColour
@@ -843,7 +849,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                           bottomLeft:tuple, 
                                           bottomRight:tuple, 
                                           point:tuple, 
-                                          depthBuffer:Image,
+                                          depthBuffer,
                                           depth1:float,
                                           depth2:float,
                                           depth3:float,
@@ -876,7 +882,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                vertex1:tuple,
                                vertex2:tuple,
                                vertex3:tuple,
-                               depthBuffer:Image,
+                               depthBuffer,
                                depth1:float,
                                depth2:float,
                                depth3:float,
@@ -1299,6 +1305,7 @@ class Camera(Abstract):
             self.project_tri(locationMatrix, inversion, tri, DEPTHBUFFER)
 
         DISPLAY.render_image(window, (0, 0))
+        #DEPTHBUFFER.render_depthbuffer(window, (0, 0))
 
 
 
@@ -1306,6 +1313,48 @@ class Camera(Abstract):
         self.rasterize()
 
         #window.blit(depthBuffer, (0, 0))
+
+
+
+# ---------------- GUI OBJECTS ----------------
+
+# Some theme constants:
+
+EDITORCOLOR = (108, 108, 108)
+EDITORDARK = (0, 0, 0)
+EDITORHIGHLIGHT = (255, 255, 255)
+
+class EditorPanel:
+    def __init__(self, size:tuple, location:tuple, colour:tuple):
+        self.size = size
+        self.location = location
+
+        self.colour = colour
+
+        print(size)
+
+        self.surface = pygame.Surface(size)
+
+    def get_title(self):
+        return self.title
+    
+    def set_title(self, title):
+        self.title = title
+
+    def render(self):
+        window.blit(self.surface, self.location)
+
+class Button(EditorPanel):
+    def __init__(self):
+        super().__init__(())
+
+class TopMenuBar(EditorPanel):
+    def __init__(self):
+        super().__init__((SCREENSIZE[0], 10), (0, 0), EDITORCOLOR)
+
+# GUI setup
+
+guiElements = [TopMenuBar()]
 
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
@@ -1352,8 +1401,6 @@ environment.add_child_relative(floor)
 floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
-
-
 
 # ---------------- MAIN LOOP ----------------
 
