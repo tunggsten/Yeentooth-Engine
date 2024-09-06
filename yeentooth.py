@@ -945,6 +945,8 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                 else:
                     vertices = [vertex2, vertex1, vertex3]
                     depths = [depth2, depth1, depth3]
+            
+        # Don't ask
 
         triangleHeight = vertices[0][1] - vertices[2][1]
         topToBottomHorizontal = vertices[0][0] - vertices[2][0]
