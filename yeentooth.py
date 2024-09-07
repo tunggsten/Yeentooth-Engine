@@ -9,7 +9,7 @@ import time
 # ---------------- MATHEMATICAL CONSTRUCTS ----------------
 
 def clamp(val:float, min:float, max:float): # the math library didn't have a function to do this so 
-    if val > max:                           # have to pick up their slack
+    if val > max:                           # I have to pick up their slack
         return max
     elif val < min:
         return min
@@ -769,7 +769,7 @@ ROOT = Abstract("Root")
 # have to reference these
 
 pygame.init()
-SCREENSIZE = (640, 480)
+SCREENSIZE = (640, 510)
 SCREENSIZEFROMCENTER = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
 window = pygame.display.set_mode(SCREENSIZE)
 pygame.display.set_caption("yeentooth")
@@ -777,7 +777,8 @@ clock = pygame.time.Clock()
 running = True
 
 class Image(): # This is like a shitty fake version of pygame.Surface
-    def __init__(self, resolution:tuple, pixelSize:tuple, colorspace:bool):
+    def __init__(self, position:tuple, resolution:tuple, pixelSize:tuple, colorspace:bool):
+        self.position = position
         self.resolution = resolution
         self.pixelSize = pixelSize
         self.colorspace = colorspace
@@ -792,6 +793,12 @@ class Image(): # This is like a shitty fake version of pygame.Surface
             self.contents.append([])
             for pixel in range(resolution[0]):
                 self.contents[row].append((0, 0, 0) if colorspace else 0.0)
+
+    def set_position(self, position:tuple):
+        self.position = position
+
+    def get_position(self):
+        return self.position
 
     def set_resolution(self, resolution:tuple):
         self.resolution = resolution
@@ -978,28 +985,28 @@ class Image(): # This is like a shitty fake version of pygame.Surface
         
                 
 
-    def render_image(self, target:pygame.Surface, position:tuple):
-        for row in range(position[1], position[1] + self.resolution[1]):
-            for pixel in range(position[0], position[0] + self.resolution[0]):
+    def render_image(self, target:pygame.Surface):
+        for row in range(self.resolution[1]):
+            for pixel in range(self.resolution[0]):
                 pygame.draw.rect(target, 
                                  self.contents[row][pixel], 
-                                 pygame.Rect((pixel * self.pixelSize[0], row * self.pixelSize[1]), self.pixelSize))
+                                 pygame.Rect((pixel * self.pixelSize[0] + self.position[0], row * self.pixelSize[1] + self.position[1]), self.pixelSize))
 
     def render_depthbuffer(self, target, position):
-        for row in range(position[1], position[1] + self.resolution[1]):
-            for pixel in range(position[0], position[0] + self.resolution[0]):
+        for row in range(self.resolution[1]):
+            for pixel in range(self.resolution[0]):
                 pygame.draw.rect(target, 
                                  (clamp(self.contents[row][pixel] * 25, 0, 255), 
                                   clamp(self.contents[row][pixel] * 25, 0, 255),
                                   clamp(self.contents[row][pixel] * 25, 0, 255)),
-                                 pygame.Rect((pixel * self.pixelSize[0], row * self.pixelSize[1]), self.pixelSize))
+                                 pygame.Rect((pixel * self.pixelSize[0] + self.position[0], row * self.pixelSize[1] + self.position[1]), self.pixelSize))
 
 
 
 # This will be the colour display triangles get rendered to
 
-DISPLAY = Image((128, 96), (5, 5), True)
-DEPTHBUFFER = Image((128, 96), (5, 5), False)
+DISPLAY = Image((0, 30), (128, 96), (5, 5), True)
+DEPTHBUFFER = Image((0, 0), (128, 96), (5, 5), False)
 
 
 
@@ -1306,7 +1313,7 @@ class Camera(Abstract):
         for tri in tris:
             self.project_tri(locationMatrix, inversion, tri, DEPTHBUFFER)
 
-        DISPLAY.render_image(window, (0, 0))
+        DISPLAY.render_image(window)
         #DEPTHBUFFER.render_depthbuffer(window, (0, 0))
 
 
@@ -1346,13 +1353,17 @@ class EditorPanel:
     def render(self):
         window.blit(self.surface, self.location)
 
+class Text(EditorPanel):
+    def __init__(self, size, location, colour, text, textColour):
+        pass
+
 class Button(EditorPanel):
-    def __init__(self):
-        super().__init__(())
+    def __init__(self, size, location, colour, text):
+        super().__init__(size, location, colour)
 
 class TopMenuBar(EditorPanel):
     def __init__(self):
-        super().__init__((SCREENSIZE[0], 10), (0, 0), EDITORCOLOR)
+        super().__init__((SCREENSIZE[0], 30), (0, 0), EDITORCOLOR)
 
 # GUI setup
 
@@ -1451,6 +1462,9 @@ while running:
     window.fill((255, 255, 255))
 
     camera.render()
+
+    for panel in guiElements:
+        window.blit(panel.surface, panel.location)
         
     frameDelta = time.time() - startTime
 
