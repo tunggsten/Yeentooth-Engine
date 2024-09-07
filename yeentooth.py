@@ -1329,9 +1329,13 @@ class Camera(Abstract):
 
 # Some theme constants:
 
-EDITORCOLOR = (108, 108, 108)
+EDITORCOLOUR = (108, 108, 108)
 EDITORDARK = (0, 0, 0)
 EDITORHIGHLIGHT = (255, 255, 255)
+
+EDITORFONT = pygame.font.Font("freesansbold.ttf", 24)
+
+
 
 class EditorPanel:
     def __init__(self, size:tuple, location:tuple, colour:tuple):
@@ -1343,6 +1347,14 @@ class EditorPanel:
         print(size)
 
         self.surface = pygame.Surface(size)
+        self.surface.fill(colour)
+        
+    def get_surface_colour(self):
+        return self.colour
+    
+    def set_surface_colour(self, colour):
+        self.colour = colour
+        self.surface.fill(colour)
 
     def get_title(self):
         return self.title
@@ -1352,18 +1364,99 @@ class EditorPanel:
 
     def render(self):
         window.blit(self.surface, self.location)
+    
+    def process(self, mousePosition):
+        self.render()
+        
+        
 
 class Text(EditorPanel):
-    def __init__(self, size, location, colour, text, textColour):
-        pass
-
-class Button(EditorPanel):
-    def __init__(self, size, location, colour, text):
+    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple):
         super().__init__(size, location, colour)
+        
+        self.textColour = textColour
+        self.text = text
+        self.rasterisedText = EDITORFONT.render(text, False, textColour)
+        
+    def get_text(self):
+        return self.text
+        
+    def set_text(self, text):
+        self.text = text
+        self.rasterisedText = EDITORFONT.render(text, False, self.textColour)
+        
+    def get_text_colour(self):
+        return self.textColour
+    
+    def set_text_colour(self, textColour):
+        self.textColour = textColour
+        self.rasterisedText = EDITORFONT.render(self.text, False, textColour)
+        
+    def render(self):
+        super().render()
+        window.blit(self.rasterisedText, self.location)
+        
+        
+            
+class Button(Text):
+    def __init__(self, size, location, colour, text, textColour):
+        super().__init__(size, location, colour, text, textColour)
+        
+    def press_action(self):
+        pass
+    
+    def check_for_mouse(self, mousePosition):
+        if self.surface.get_rect(topleft=self.location).collidepoint(mousePosition):
+            if pygame.mouse.get_pressed()[0]:
+                self.set_surface_colour(EDITORCOLOUR)
+                self.set_text_colour(EDITORDARK)
+                
+                self.press_action()
+            else:
+                self.set_surface_colour(EDITORHIGHLIGHT)
+                self.set_text_colour(EDITORDARK)
+        else:
+            print("Mouse not hovering")
+            self.set_surface_colour(EDITORCOLOUR)
+            self.set_text_colour(EDITORHIGHLIGHT)
+            
+    def process(self, mousePosition):
+        self.check_for_mouse(mousePosition)
+        self.render()
+        
+        
+        
+class ClickActionMenu(EditorPanel):
+    def __init__(self, location, buttons:list[Button]):
+        super().__init__((100, len(buttons) * 28 + 2), location, EDITORCOLOUR)
+        
+        self.buttons = []
+        for button in buttons:
+            self.buttons.append(button)
+            
+            
 
 class TopMenuBar(EditorPanel):
     def __init__(self):
-        super().__init__((SCREENSIZE[0], 30), (0, 0), EDITORCOLOR)
+        super().__init__((SCREENSIZE[0], 30), (0, 0), EDITORDARK)
+        
+        self.buttons = [Button((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT),
+                        Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT),
+                        Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT)]
+        
+    def render(self):
+        super().render()
+        
+        for button in self.buttons:
+            button.render()
+        
+    def process(self, mousePosition):
+        for button in self.buttons:
+            button.process(mousePosition)
+        
+        self.render()
+        
+        
 
 # GUI setup
 
@@ -1463,8 +1556,10 @@ while running:
 
     camera.render()
 
+    mousePosition = pygame.mouse.get_pos()
+    
     for panel in guiElements:
-        window.blit(panel.surface, panel.location)
+        panel.process(mousePosition)
         
     frameDelta = time.time() - startTime
 
