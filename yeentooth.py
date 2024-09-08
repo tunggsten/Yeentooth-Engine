@@ -1366,6 +1366,7 @@ class EditorPanel:
         window.blit(self.surface, self.location)
     
     def process(self, mousePosition):
+        print(f"Rendering Editorpanel")
         self.render()
         
         
@@ -1416,7 +1417,6 @@ class Button(Text):
                 self.set_surface_colour(EDITORHIGHLIGHT)
                 self.set_text_colour(EDITORDARK)
         else:
-            print("Mouse not hovering")
             self.set_surface_colour(EDITORCOLOUR)
             self.set_text_colour(EDITORHIGHLIGHT)
             
@@ -1424,43 +1424,70 @@ class Button(Text):
         self.check_for_mouse(mousePosition)
         self.render()
         
-        
-        
 class ClickActionMenu(EditorPanel):
     def __init__(self, location, buttons:list[Button]):
         super().__init__((100, len(buttons) * 28 + 2), location, EDITORCOLOUR)
         
-        self.buttons = []
+        self.buttons = buttons
+
+        count = 0
         for button in buttons:
-            self.buttons.append(button)
+            button.location = (location[0], location[1] + (count * 28) + 4)
+            count += 1
+
+    def process(self, mousePosition):
+        self.render()
+
+        for button in self.buttons:
+            button.process(mousePosition)
+
+class ButtonBar(EditorPanel):
+    def __init__(self, size, location, colour, buttons, buttonSpacing):
+        super().__init__(size, location, colour)
+
+        self.buttons = buttons
+
+        count = 0
+        for button in buttons:
+            button.location = (location[0] + (count * (buttonSpacing + 2)) + 2, location[1] + 2)
+            count += 1
+        
+    def process(self, mousePosition):
+        print(super())
+        super().render()
+
+        print(self.location)
+
+        for button in self.buttons:
+            print(button.text)
+            print(button.location)
+            button.process(mousePosition)
             
             
 
-class TopMenuBar(EditorPanel):
+# Top Menu Bar buttons
+class FileButton(Button):
     def __init__(self):
-        super().__init__((SCREENSIZE[0], 30), (0, 0), EDITORDARK)
-        
-        self.buttons = [Button((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT),
-                        Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT),
-                        Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT)]
-        
-    def render(self):
-        super().render()
-        
-        for button in self.buttons:
-            button.render()
-        
-    def process(self, mousePosition):
-        for button in self.buttons:
-            button.process(mousePosition)
-        
-        self.render()
-        
+        super().__init__((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT)
+
+class TopMenuBar(ButtonBar):
+    def __init__(self):
+        super().__init__((SCREENSIZE[0], 30), 
+                         (0, 0), 
+                         EDITORDARK, 
+                         [FileButton(),
+                         Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT),
+                         Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT)], 
+                         70)
         
 
 # GUI setup
 
 guiElements = [TopMenuBar()]
+
+
+
+# ---------------- SCENE INITIALISATION ----------------
 
 origin = Abstract("Origin")
 ROOT.add_child_relative(origin)
@@ -1507,6 +1534,8 @@ environment.add_child_relative(floor)
 floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
+
+
 
 # ---------------- MAIN LOOP ----------------
 
