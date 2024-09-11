@@ -1338,7 +1338,7 @@ EDITORFONT = pygame.font.Font("freesansbold.ttf", 24)
 
 
 class EditorPanel:
-    def __init__(self, size:tuple, location:tuple, colour:tuple):
+    def __init__(self, size:tuple, location:tuple, colour:tuple, subelements:list):
         self.size = size
         self.location = location
 
@@ -1348,6 +1348,8 @@ class EditorPanel:
 
         self.surface = pygame.Surface(size)
         self.surface.fill(colour)
+
+        self.subelements = subelements
         
     def get_surface_colour(self):
         return self.colour
@@ -1368,17 +1370,20 @@ class EditorPanel:
     def process(self, mousePosition):
         print(f"Rendering Editorpanel")
         self.render()
+
+        for element in self.subelements:
+            element.process()
         
         
 
 class Text(EditorPanel):
-    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple):
-        super().__init__(size, location, colour)
+    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple, subelements:list):
+        super().__init__(size, location, colour, subelements)
         
         self.textColour = textColour
         self.text = text
         self.rasterisedText = EDITORFONT.render(text, False, textColour)
-        
+
     def get_text(self):
         return self.text
         
@@ -1400,8 +1405,8 @@ class Text(EditorPanel):
         
             
 class Button(Text):
-    def __init__(self, size, location, colour, text, textColour):
-        super().__init__(size, location, colour, text, textColour)
+    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple, subelements:list):
+        super().__init__(size, location, colour, text, textColour, subelements)
         
     def press_action(self):
         pass
@@ -1425,30 +1430,33 @@ class Button(Text):
         self.render()
         
 class ClickActionMenu(EditorPanel):
-    def __init__(self, location, buttons:list[Button]):
-        super().__init__((100, len(buttons) * 28 + 2), location, EDITORCOLOUR)
-        
-        self.buttons = buttons
+    def __init__(self, location:tuple, subelements:list[Button]):
+        super().__init__((100, len(subelements) * 28 + 2), location, EDITORCOLOUR, subelements)
+
+        self.enabled = False
 
         count = 0
-        for button in buttons:
+        for button in subelements:
             button.location = (location[0], location[1] + (count * 28) + 4)
             count += 1
 
     def process(self, mousePosition):
-        self.render()
+        if self.enabled:
+            print(f"ClickActionMenu is enabled.")
+            self.render()
 
-        for button in self.buttons:
-            button.process(mousePosition)
+            for button in self.buttons:
+                button.process(mousePosition)
+
+    def toggle(self):
+        self.enabled = not self.enabled
 
 class ButtonBar(EditorPanel):
-    def __init__(self, size, location, colour, buttons, buttonSpacing):
-        super().__init__(size, location, colour)
-
-        self.buttons = buttons
+    def __init__(self, size:tuple, location:tuple, colour:tuple, subelements:list[Button], buttonSpacing:int):
+        super().__init__(size, location, colour, subelements)
 
         count = 0
-        for button in buttons:
+        for button in subelements:
             button.location = (location[0] + (count * (buttonSpacing + 2)) + 2, location[1] + 2)
             count += 1
         
@@ -1458,7 +1466,7 @@ class ButtonBar(EditorPanel):
 
         print(self.location)
 
-        for button in self.buttons:
+        for button in self.subelements:
             print(button.text)
             print(button.location)
             button.process(mousePosition)
@@ -1466,9 +1474,21 @@ class ButtonBar(EditorPanel):
             
 
 # Top Menu Bar buttons
+class ExitButton(Button):
+    def __init__(self):
+        super().__init__((26, 100), (0, 0), EDITORCOLOUR, "Exit", EDITORHIGHLIGHT, [])
+    
+class FileButtonClickActionMenu(ClickActionMenu):
+    def __init__(self):
+        super().__init__(((2, 28) [ExitButton()]))
+
 class FileButton(Button):
     def __init__(self):
-        super().__init__((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT)
+        super().__init__((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT, [FileButtonClickActionMenu])
+
+    def press_action(self):
+        print("Pressed!")
+        self.subelements[0].toggle()
 
 class TopMenuBar(ButtonBar):
     def __init__(self):
@@ -1476,8 +1496,8 @@ class TopMenuBar(ButtonBar):
                          (0, 0), 
                          EDITORDARK, 
                          [FileButton(),
-                         Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT),
-                         Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT)], 
+                         Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT, []),
+                         Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT, [])], 
                          70)
         
 
@@ -1534,6 +1554,10 @@ environment.add_child_relative(floor)
 floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
+
+environment.set_distortion_objective(Matrix([[1, 0, 0],
+                                             [0, 1, 0],
+                                             [0, 0, 1]]))
 
 
 
