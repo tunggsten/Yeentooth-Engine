@@ -435,7 +435,7 @@ class Abstract:
             self.objectiveLocation =  location if location else ORIGIN
             self.objectiveDistortion = distortion if distortion else I3
 
-        self.script = None # Implement this later
+        self.script = script if script else None # Implement this later
         
         self.tags = tags if tags else []
         
@@ -752,6 +752,35 @@ class Abstract:
                                  [-siny, 0, cosy]]))
         
         self.distort_relative(rotationMatrix) # Change back to relative when it's fixed
+
+    
+
+    # Scripting functions
+
+    def run_script(self):
+        if self.script:
+            exec(open(self.script, "r"))
+
+    def attach_script(self, script):
+        self.script = script
+
+    def get_script_path(self):
+        return self.script
+    
+    def initialise_script(self):
+        pass
+
+    def initialise_process(self):
+        self.initialise_script()
+
+        for child in self.children:
+            child.initialise_process()
+    
+    def process(self):
+        self.run_script()
+
+        for child in self.children:
+            child.process()
         
 
                             
@@ -774,7 +803,7 @@ SCREENSIZEFROMCENTER = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
 window = pygame.display.set_mode(SCREENSIZE)
 pygame.display.set_caption("yeentooth")
 clock = pygame.time.Clock()
-running = True
+engineRunning = True
 
 class Image(): # This is like a shitty fake version of pygame.Surface
     def __init__(self, position:tuple, resolution:tuple, pixelSize:tuple, colorspace:bool):
@@ -1509,74 +1538,77 @@ guiElements = [TopMenuBar()]
 
 # ---------------- SCENE INITIALISATION ----------------
 
-origin = Abstract("Origin")
-ROOT.add_child_relative(origin)
-
-environment = Abstract("Environment")
-origin.add_child_relative(environment)
-
-player = Abstract("Player", Matrix([[0],
-                                    [0],
-                                    [-4]]))
-origin.add_child_relative(player)
-
-camera = Camera("Camera", Matrix([[0],
-                                  [0],
-                                  [0]]), I3, 60)
-player.add_child_relative(camera)
-
-cube = Cube("Cube", (200, 200, 200), True)
-environment.add_child_relative(cube)
-
-cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
-
-leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
-                                                              [1],
-                                                              [0]]), Matrix([[0, 4, 0],
-                                                                             [-4, 0, 0],
-                                                                             [0, 0, 4]]))
-environment.add_child_relative(leftWall)
-
-backWall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
-                                                        [1],
-                                                        [2]]), Matrix([[4, 0, 0],
-                                                                       [0, 0, 4],
-                                                                       [0, -4, 0]]))
-environment.add_child_relative(backWall)
-
-floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
-                                                        [-1],
-                                                        [0]]), Matrix([[4, 0, 0],
-                                                                       [0, 4, 0],
-                                                                       [0, 0, 4]]))
-environment.add_child_relative(floor) 
-
-floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
-backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
-leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
-
-environment.set_distortion_objective(Matrix([[1, 0, 0],
-                                             [0, 1, 0],
-                                             [0, 0, 1]]))
 
 
 
 # ---------------- MAIN LOOP ----------------
 
-movementSpeed = 4
-lookSpeed = 2
+def initialise_scene_editmode():
+        
+    origin = Abstract("Origin")
+    ROOT.add_child_relative(origin)
 
-frameDelta = 0
+    origin.attach_script("/project/scripts/hello.py")
 
-while running:
-    startTime = time.time()
+    environment = Abstract("Environment")
+    origin.add_child_relative(environment)
+
+    player = Abstract("Player", Matrix([[0],
+                                        [0],
+                                        [-4]]))
+    origin.add_child_relative(player)
+
+    camera = Camera("Camera", Matrix([[0],
+                                    [0],
+                                    [0]]), I3, 60)
+    player.add_child_relative(camera)
+
+    camera.attach_script()
+
+    cube = Cube("Cube", (200, 200, 200), True)
+    environment.add_child_relative(cube)
+
+    cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
+
+    leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
+                                                                [1],
+                                                                [0]]), Matrix([[0, 4, 0],
+                                                                                [-4, 0, 0],
+                                                                                [0, 0, 4]]))
+    environment.add_child_relative(leftWall)
+
+    backWall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
+                                                            [1],
+                                                            [2]]), Matrix([[4, 0, 0],
+                                                                        [0, 0, 4],
+                                                                        [0, -4, 0]]))
+    environment.add_child_relative(backWall)
+
+    floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
+                                                            [-1],
+                                                            [0]]), Matrix([[4, 0, 0],
+                                                                        [0, 4, 0],
+                                                                        [0, 0, 4]]))
+    environment.add_child_relative(floor) 
+
+    floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
+    backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
+    leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
+
+    environment.set_distortion_objective(Matrix([[1, 0, 0],
+                                                [0, 1, 0],
+                                                [0, 0, 1]]))
+
+def game_loop_editmode(delta:float):
+    ROOT.process()
 
     events = pygame.event.get()
     
     for event in events:
         if event.type == pygame.QUIT:
-            running = False
-            
+            engineRunning = False
+    
+    '''q`   AVF
     playerMovement = [[0],
                       [0],
                       [0]]
@@ -1608,11 +1640,31 @@ while running:
     window.fill((255, 255, 255))
 
     camera.render()
+    '''
 
     mousePosition = pygame.mouse.get_pos()
     
     for panel in guiElements:
         panel.process(mousePosition)
+        
+    pygame.display.flip()
+
+def initialise_scene_playmode():
+    pass
+
+def game_loop_playmode(delta:float):
+    pass
+
+
+movementSpeed = 4
+lookSpeed = 2
+
+frameDelta = 0
+
+while engineRunning:
+    startTime = time.time()
+
+    game_loop_editmode(frameDelta)
         
     frameDelta = time.time() - startTime
 
@@ -1623,5 +1675,3 @@ while running:
         print(f"Finished frame in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz \n")
     except:
         print("Very fast")
-        
-    pygame.display.flip()
