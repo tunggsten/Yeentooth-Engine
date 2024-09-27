@@ -20,9 +20,10 @@ Yeentooth uses custom implementations of common graphical and mathematical funct
 
 ## **Planned features**
 
- * Graphical User Interface
+ * ~~Graphical User Interface~~
 
-At the moment you have to instantiate and manage everything in your scene through code, but I'm working on a scene management interface which should make producing your game as easy as possible
+~~At the moment you have to instantiate and manage everything in your scene through code, but I'm working on a scene management interface which should make producing your game as easy as possible~~
+I've scrapped this because it was taking too long and I wasn't enjoying making it, so I'm going to make a simple command line interface for the editor functions instead. You'll still have a viewport and you'll be able to see the changes you make.
 
  * Abstract script attachments
 
