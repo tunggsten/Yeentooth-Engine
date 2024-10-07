@@ -1,8 +1,15 @@
+# This doesn't actually work at the moment 😭
+
+# I'm changing a lot of the core loops and processes to let the user preview their environment
+# while they're editing things rather than having to rawdog engine code.
+
 import pygame
 
 import math
 import random
 import time
+
+import importlib
 
 
 
@@ -383,7 +390,7 @@ class Abstract:
                  location:Matrix=None, 
                  distortion:Matrix=None, 
                  tags:list[str]=None,
-                 script=None,
+                 script:str=None,
                  parent=None, 
                  children=None): # I'm well aware this is clapped. 
         
@@ -757,9 +764,9 @@ class Abstract:
 
     # Scripting functions
 
-    def run_script(self):
+    def run_script(self, delta):
         if self.script:
-            exec(open(self.script, "r"))
+            process(delta)
 
     def attach_script(self, script):
         self.script = script
@@ -768,7 +775,8 @@ class Abstract:
         return self.script
     
     def initialise_script(self):
-        pass
+        from project import process
+        
 
     def initialise_process(self):
         self.initialise_script()
@@ -776,11 +784,11 @@ class Abstract:
         for child in self.children:
             child.initialise_process()
     
-    def process(self):
-        self.run_script()
+    def process(self, delta):
+        self.run_script(delta)
 
         for child in self.children:
-            child.process()
+            child.process(delta)
         
 
                             
@@ -798,7 +806,7 @@ ROOT = Abstract("Root")
 # have to reference these
 
 pygame.init()
-SCREENSIZE = (640, 510)
+SCREENSIZE = (640, 480)
 SCREENSIZEFROMCENTER = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
 window = pygame.display.set_mode(SCREENSIZE)
 pygame.display.set_caption("yeentooth")
@@ -1034,7 +1042,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
 
 # This will be the colour display triangles get rendered to
 
-DISPLAY = Image((0, 30), (128, 96), (5, 5), True)
+DISPLAY = Image((0, 0), (128, 96), (5, 5), True)
 DEPTHBUFFER = Image((0, 0), (128, 96), (5, 5), False)
 
 
@@ -1354,188 +1362,6 @@ class Camera(Abstract):
 
 
 
-# ---------------- GUI OBJECTS ----------------
-
-# Some theme constants:
-
-EDITORCOLOUR = (108, 108, 108)
-EDITORDARK = (0, 0, 0)
-EDITORHIGHLIGHT = (255, 255, 255)
-
-EDITORFONT = pygame.font.Font("freesansbold.ttf", 24)
-
-
-
-class EditorPanel:
-    def __init__(self, size:tuple, location:tuple, colour:tuple, subelements:list):
-        self.size = size
-        self.location = location
-
-        self.colour = colour
-
-        print(size)
-
-        self.surface = pygame.Surface(size)
-        self.surface.fill(colour)
-
-        self.subelements = subelements
-        
-    def get_surface_colour(self):
-        return self.colour
-    
-    def set_surface_colour(self, colour):
-        self.colour = colour
-        self.surface.fill(colour)
-
-    def get_title(self):
-        return self.title
-    
-    def set_title(self, title):
-        self.title = title
-
-    def render(self):
-        window.blit(self.surface, self.location)
-    
-    def process(self, mousePosition):
-        print(f"Rendering Editorpanel")
-        self.render()
-
-        for element in self.subelements:
-            element.process()
-        
-        
-
-class Text(EditorPanel):
-    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple, subelements:list):
-        super().__init__(size, location, colour, subelements)
-        
-        self.textColour = textColour
-        self.text = text
-        self.rasterisedText = EDITORFONT.render(text, False, textColour)
-
-    def get_text(self):
-        return self.text
-        
-    def set_text(self, text):
-        self.text = text
-        self.rasterisedText = EDITORFONT.render(text, False, self.textColour)
-        
-    def get_text_colour(self):
-        return self.textColour
-    
-    def set_text_colour(self, textColour):
-        self.textColour = textColour
-        self.rasterisedText = EDITORFONT.render(self.text, False, textColour)
-        
-    def render(self):
-        super().render()
-        window.blit(self.rasterisedText, self.location)
-        
-        
-            
-class Button(Text):
-    def __init__(self, size:tuple, location:tuple, colour:tuple, text:str, textColour:tuple, subelements:list):
-        super().__init__(size, location, colour, text, textColour, subelements)
-        
-    def press_action(self):
-        pass
-    
-    def check_for_mouse(self, mousePosition):
-        if self.surface.get_rect(topleft=self.location).collidepoint(mousePosition):
-            if pygame.mouse.get_pressed()[0]:
-                self.set_surface_colour(EDITORCOLOUR)
-                self.set_text_colour(EDITORDARK)
-                
-                self.press_action()
-            else:
-                self.set_surface_colour(EDITORHIGHLIGHT)
-                self.set_text_colour(EDITORDARK)
-        else:
-            self.set_surface_colour(EDITORCOLOUR)
-            self.set_text_colour(EDITORHIGHLIGHT)
-            
-    def process(self, mousePosition):
-        self.check_for_mouse(mousePosition)
-        self.render()
-        
-class ClickActionMenu(EditorPanel):
-    def __init__(self, location:tuple, subelements:list[Button]):
-        super().__init__((100, len(subelements) * 28 + 2), location, EDITORCOLOUR, subelements)
-
-        self.enabled = False
-
-        count = 0
-        for button in subelements:
-            button.location = (location[0], location[1] + (count * 28) + 4)
-            count += 1
-
-    def process(self, mousePosition):
-        if self.enabled:
-            print(f"ClickActionMenu is enabled.")
-            self.render()
-
-            for button in self.buttons:
-                button.process(mousePosition)
-
-    def toggle(self):
-        self.enabled = not self.enabled
-
-class ButtonBar(EditorPanel):
-    def __init__(self, size:tuple, location:tuple, colour:tuple, subelements:list[Button], buttonSpacing:int):
-        super().__init__(size, location, colour, subelements)
-
-        count = 0
-        for button in subelements:
-            button.location = (location[0] + (count * (buttonSpacing + 2)) + 2, location[1] + 2)
-            count += 1
-        
-    def process(self, mousePosition):
-        print(super())
-        super().render()
-
-        print(self.location)
-
-        for button in self.subelements:
-            print(button.text)
-            print(button.location)
-            button.process(mousePosition)
-            
-            
-
-# Top Menu Bar buttons
-class ExitButton(Button):
-    def __init__(self):
-        super().__init__((26, 100), (0, 0), EDITORCOLOUR, "Exit", EDITORHIGHLIGHT, [])
-    
-class FileButtonClickActionMenu(ClickActionMenu):
-    def __init__(self):
-        super().__init__(((2, 28) [ExitButton()]))
-
-class FileButton(Button):
-    def __init__(self):
-        super().__init__((70, 26), (2, 2), EDITORCOLOUR, "File", EDITORHIGHLIGHT, [FileButtonClickActionMenu])
-
-    def press_action(self):
-        print("Pressed!")
-        self.subelements[0].toggle()
-
-class TopMenuBar(ButtonBar):
-    def __init__(self):
-        super().__init__((SCREENSIZE[0], 30), 
-                         (0, 0), 
-                         EDITORDARK, 
-                         [FileButton(),
-                         Button((70, 26), (74, 2), EDITORCOLOUR, "Edit", EDITORHIGHLIGHT, []),
-                         Button((70, 26), (146, 2), EDITORCOLOUR, "Play", EDITORHIGHLIGHT, [])], 
-                         70)
-        
-
-# GUI setup
-
-guiElements = [TopMenuBar()]
-
-
-
 # ---------------- SCENE INITIALISATION ----------------
 
 
@@ -1600,13 +1426,7 @@ def initialise_scene_editmode():
                                                 [0, 0, 1]]))
 
 def game_loop_editmode(delta:float):
-    ROOT.process()
-
-    events = pygame.event.get()
-    
-    for event in events:
-        if event.type == pygame.QUIT:
-            engineRunning = False
+    ROOT.process(delta)
     
     '''q`   AVF
     playerMovement = [[0],
@@ -1643,9 +1463,6 @@ def game_loop_editmode(delta:float):
     '''
 
     mousePosition = pygame.mouse.get_pos()
-    
-    for panel in guiElements:
-        panel.process(mousePosition)
         
     pygame.display.flip()
 
@@ -1663,6 +1480,12 @@ frameDelta = 0
 
 while engineRunning:
     startTime = time.time()
+    
+    events = pygame.event.get()
+    
+    for event in events:
+        if event.type == pygame.QUIT:
+            engineRunning = False
 
     game_loop_editmode(frameDelta)
         
