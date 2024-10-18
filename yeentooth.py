@@ -1,10 +1,5 @@
 import pygame
-from tkinter import *
-
 import math
-import random
-import time
-
 
 
 # ---------------- MATHEMATICAL CONSTRUCTS ----------------
@@ -817,7 +812,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                       x1:int, 
                                       x2:int, 
                                       y:int,
-                                      depthBuffer:Image, 
+                                      depthBuffer, 
                                       depth1:float,
                                       depth2:float, 
                                       colour1:tuple, 
@@ -843,7 +838,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                           bottomLeft:tuple, 
                                           bottomRight:tuple, 
                                           point:tuple, 
-                                          depthBuffer:Image,
+                                          depthBuffer,
                                           depth1:float,
                                           depth2:float,
                                           depth3:float,
@@ -876,7 +871,7 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                                vertex1:tuple,
                                vertex2:tuple,
                                vertex3:tuple,
-                               depthBuffer:Image,
+                               depthBuffer,
                                depth1:float,
                                depth2:float,
                                depth3:float,
@@ -1077,6 +1072,7 @@ class Mesh(Abstract):
     
     def change_tris_to_gradient(self, colour1, colour2, colour3):
         for tri in self.get_substracts_of_type(Tri):
+            print(tri)
             self.add_child_relative(GradientTri(tri.vertices.get_transpose().get_contents(), colour1, colour2, colour3, tri.lit))
             tri.kill_self_and_substracts()
             del tri
@@ -1269,16 +1265,22 @@ class Camera(Abstract):
             vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeX), 
                        math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeY))
 
-            if type(tri) == GradientTri:
-                DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
-                                               depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
-                                               tri.albedo1, tri.albedo2, tri.albedo3)
+            if ((0 <= vertex1[0] <= 127 and # This is the worst way i could possibly do this.
+                0 <= vertex1[1] <= 95) or   # Too bad! It works so it's staying
+                (0 <= vertex2[0] <= 127 and
+                0 <= vertex2[1] <= 95) or 
+                (0 <= vertex3[0] <= 127 and
+                0 <= vertex3[1] <= 95)):
+                if type(tri) == GradientTri:
+                    DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
+                                                depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                                tri.albedo1, tri.albedo2, tri.albedo3)
 
-            else:
-                DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
-                                               depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
-                                               tri.albedo)
-                
+                else:
+                    DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
+                                                depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                                tri.albedo)
+                    
             #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
@@ -1307,110 +1309,45 @@ class Camera(Abstract):
 
         #window.blit(depthBuffer, (0, 0))
 
-origin = Abstract("Origin")
-ROOT.add_child_relative(origin)
 
-environment = Abstract("Environment")
-origin.add_child_relative(environment)
 
-player = Abstract("Player", Matrix([[0],
-                                    [0],
-                                    [-4]]))
-origin.add_child_relative(player)
-
-camera = Camera("Camera", Matrix([[0],
-                                  [0],
-                                  [0]]), I3, 60)
-player.add_child_relative(camera)
-
-cube = Cube("Cube", (200, 200, 200), True)
-environment.add_child_relative(cube)
-
-cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
-
-leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
-                                                              [1],
-                                                              [0]]), Matrix([[0, 4, 0],
-                                                                             [-4, 0, 0],
-                                                                             [0, 0, 4]]))
-environment.add_child_relative(leftWall)
-
-backWall = Plane("BackWall", (4, 4), (0, 0, 0), True, Matrix([[0],
-                                                        [1],
-                                                        [2]]), Matrix([[4, 0, 0],
-                                                                       [0, 0, 4],
-                                                                       [0, -4, 0]]))
-environment.add_child_relative(backWall)
-
-floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
-                                                        [-1],
-                                                        [0]]), Matrix([[4, 0, 0],
-                                                                       [0, 4, 0],
-                                                                       [0, 0, 4]]))
-environment.add_child_relative(floor) 
-
-floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
-backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
-leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
+# ---------------- PHYSICS OBJECTS ----------------
 
 
 
-# ---------------- MAIN LOOP ----------------
+# Since units are important here, let's establish some conventions:
 
-movementSpeed = 4
-lookSpeed = 2
+UNITSCALE = 1 # This is how many meters one unit is equivalent to.
 
-frameDelta = 0
+              # I'm doing this 'cause lots of engines let you change it.
 
-while running:
-    startTime = time.time()
+              # Like imagine building a mech sim, but you have to keep the physics
+              # engine to scale, so your player mesh ends up being 400 units tall.
 
-    events = pygame.event.get()
-    
-    for event in events:
-        if event.type == pygame.QUIT:
-            running = False
-            
-    playerMovement = [[0],
-                      [0],
-                      [0]]
-    
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_w]:
-        playerMovement[2] = [1]
-    if keys[pygame.K_s]:
-        playerMovement[2] = [-1]
-    if keys[pygame.K_a]:
-        playerMovement[0] = [-1]
-    if keys[pygame.K_d]:
-        playerMovement[0] = [1]
+              # Not ideal.
 
-    player.translate_relative(Matrix(playerMovement).set_magnitude(movementSpeed * frameDelta))
+              # You can change this if you want, but for most things you can just keep
+              # it at 1.
+
+STEPSCALE = 1 # This is how many simulated seconds one second at runtime is equivalent to.
+              # It's here for the same reasons as UNITSCALE
+
+GRAVFIELDSTRENGTH = 9.81 # The strength of the scene's gravitational field 
+                         # measured in Newtons per kilogram (NKg^-1)
+
+                         # It's also the acceleration things will fall at in meters per second per second (ms^-2)
+
+                         # It's named like a constant but you're free to change it if you want
+
+class Body(Abstract):
+    def __init__(self, name:str, location:Matrix, velocity:Matrix, angularVelocity:Matrix, mass:float, dynamic:bool=None):
+        super().__init__(name, location)
         
-    if keys[pygame.K_RIGHT]:
-        player.rotate_euler_radians(0, lookSpeed * frameDelta, 0)
-    if keys[pygame.K_LEFT]:
-        player.rotate_euler_radians(0, -lookSpeed * frameDelta, 0)
+        self.velocity = velocity # A 3D collumb vector measured in meters per second (ms^-1)
+        self.angularVelocity = angularVelocity
+        self.mass = mass # Mass in kilograms (Kg)
 
-    if keys[pygame.K_UP]:
-        camera.rotate_euler_radians(-lookSpeed * frameDelta, 0, 0)
-    if keys[pygame.K_DOWN]:
-        camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
+        self.dynamic = dynamic if dynamic else True
 
-    cube.rotate_euler_radians(frameDelta, frameDelta, 0)
-        
-    window.fill((255, 255, 255))
-
-    camera.render()
-        
-    frameDelta = time.time() - startTime
-
-    if frameDelta > 0.1:
-        print("Framedrop detected")
-
-    try:
-        print(f"Finished frame in {frameDelta} seconds. \nEquivalent to {1 / (frameDelta)} Hz \n")
-    except:
-        print("Very fast")
-        
-    pygame.display.flip()
+    def process(self):
+        pass
