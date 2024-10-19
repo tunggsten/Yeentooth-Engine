@@ -518,7 +518,6 @@ class Abstract:
         return self.children
     
     def add_child_relative(self, newChild):
-        print(f"Adding child: {newChild.get_name()} at {newChild.objectiveLocation}")
         if newChild.parent:
             newChild.parent.children.remove(newChild)
         newChild.parent = self
@@ -840,9 +839,10 @@ class Image(): # This is like a shitty fake version of pygame.Surface
         uv2 = kwargs.get("uv2", None)
 
         if 0 <= y < self.resolution[1]:
+            lineLength = abs(x2 - x1)
             for i in range(x1, x2, 1 if x1 < x2 else -1):
                 if 0 <= i < self.resolution[0]:
-                    interpolationAmount = (i - x1) / abs(x2 - x1)
+                    interpolationAmount = (i - x1) / lineLength
                     depth = self.interpolate_value(depth1, depth2, interpolationAmount)
                     
                     if depth <= depthBuffer.contents[y][i]:
@@ -1133,13 +1133,13 @@ class Mesh(Abstract):
     def change_tris_to_gradient(self, colour1, colour2, colour3):
         for tri in self.get_substracts_of_type(Tri):
             print(tri)
-            self.add_child_relative(GradientTri(tri.vertices.get_transpose().get_contents(), colour1, colour2, colour3, tri.lit))
+            self.add_child_relative(GradientTri(tri.vertices.get_transpose().get_contents(), colour1, colour2, colour3, tri.lit, tri.tags))
             tri.kill_self_and_substracts()
             del tri
     
     def change_tris_to_flat_colour(self, colour):
         for tri in self.get_substracts_of_type(GradientTri):
-            self.add_child_relative(Tri(tri.vertices.get_transpose().get_contents(), colour, tri.lit))
+            self.add_child_relative(Tri(tri.vertices.get_transpose().get_contents(), colour, tri.lit, tri.tags))
             tri.kill_self_and_substracts()
             del tri
 
@@ -1205,8 +1205,37 @@ class Plane(Mesh):
             step.append((left[i] - right[i]) / self.quadResolution[1])
 
         for i in range(self.quadResolution[1]):
-            for j in range(self.quadResolution[1] * 2):
-                tris[i * self.quadResolution[1] + j].set_albedo((left[0] + j * step[0], left[1] + j * step[1], left[2] + j * step[2]))
+            for j in range(self.quadResolution[0] * 2):
+                tris[i * self.quadResolution[0] * 2 + j].set_albedo((left[0] + j * step[0], 
+                                                                 left[1] + j * step[1], 
+                                                                 left[2] + j * step[2]))
+    
+    def set_pattern_texture(self, texture:Texture):
+        textureHeight = texture.surface.get_height() - 1
+
+        UVWidth = math.floor((texture.surface.get_width() - 1)/ self.quadResolution[0])
+        UVHeight = math.floor((textureHeight - 1) / self.quadResolution[1]) 
+
+        tris = self.get_children_with_tag("PlaneTri")
+
+        for i in range(self.quadResolution[1]):
+            for j in range(0, self.quadResolution[0] * 2, 2):
+                currentTri = tris[i * self.quadResolution[0] * 2 + j]
+
+                self.add_child_relative(TextureTri(currentTri.vertices.get_transpose().get_contents(), texture, 
+                                                   (i * UVWidth, textureHeight - (j/2) * UVHeight),
+                                                   (i * UVWidth, textureHeight - ((j/2)+1) * UVHeight),
+                                                   ((i+1) * UVWidth, textureHeight - (j/2) * UVHeight), True))
+                
+                currentTri = tris[i * self.quadResolution[0] * 2 + j + 1]
+
+                self.add_child_relative(TextureTri(currentTri.vertices.get_transpose().get_contents(), texture, 
+                                                   ((i+1) * UVWidth, textureHeight - (j/2 + 1) * UVHeight),
+                                                   (i * UVWidth, textureHeight - ((j/2)+1) * UVHeight),
+                                                   ((i+1) * UVWidth, textureHeight - (j/2) * UVHeight), True))
+        
+        for tri in tris:
+            tri.kill_self()
 
 
 
@@ -1233,45 +1262,164 @@ class Cube(Mesh):
         # Front
         self.add_child_relative(Tri([[-0.5,-0.5,-0.5],
                                      [-0.5,0.5,-0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[0.5,0.5,-0.5],
                                      [-0.5,0.5,-0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         # Back
         self.add_child_relative(Tri([[0.5,0.5,0.5],
                                      [-0.5,0.5,0.5],
-                                     [0.5,-0.5,0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[-0.5,-0.5,0.5],
                                      [-0.5,0.5,0.5],
-                                     [0.5,-0.5,0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,0.5]], self.colour, self.lit, ["CubeTri"]))
         # Left
         self.add_child_relative(Tri([[-0.5,-0.5,0.5],
                                      [-0.5,0.5,0.5],
-                                     [-0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [-0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[-0.5,0.5,-0.5],
                                      [-0.5,0.5,0.5],
-                                     [-0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [-0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         # Right
         self.add_child_relative(Tri([[0.5,0.5,-0.5],
                                      [0.5,0.5,0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[0.5,-0.5,0.5],
                                      [0.5,0.5,0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         # Top
         self.add_child_relative(Tri([[-0.5,0.5,-0.5],
                                      [-0.5,0.5,0.5],
-                                     [0.5,0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[0.5,0.5,0.5],
                                      [-0.5,0.5,0.5],
-                                     [0.5,0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         # Bottom
         self.add_child_relative(Tri([[-0.5,-0.5,-0.5],
                                      [-0.5,-0.5,0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
         self.add_child_relative(Tri([[0.5,-0.5,0.5],
                                      [-0.5,-0.5,0.5],
-                                     [0.5,-0.5,-0.5]], self.colour, self.lit))
+                                     [0.5,-0.5,-0.5]], self.colour, self.lit, ["CubeTri"]))
+        
+    def set_pattern_texture(self, texture:Texture):
+        textureSize = texture.surface.get_size()
+
+        tris = self.get_children_with_tag("CubeTri")
+        print(self.get_children())
+        print(tris)
+
+        for i in range(6):
+            self.add_child_relative(TextureTri(tris[i * 2].get_vertices().get_transpose().get_contents(),
+                                               texture,
+                                               (0, 0), 
+                                               (textureSize[0] - 1, 0), 
+                                               (0, textureSize[1] - 1), True))
+            
+            self.add_child_relative(TextureTri(tris[i * 2 + 1].get_vertices().get_transpose().get_contents(),
+                                               texture,
+                                               (textureSize[0] - 1, textureSize[1] - 1), 
+                                               (textureSize[0] - 1, 0), 
+                                               (0, textureSize[1] - 1), True))
+            
+        for tri in tris:
+            tri.kill_self_and_substracts()
+
+
+
+class Wavefront(Mesh):
+    def __init__(self, 
+                 name:str, 
+                 obj:str,
+                 colour:tuple, 
+                 lit:bool=None,
+                 location:Matrix=None, 
+                 distortion:Matrix=None,
+                 tags:list[str]=None,
+                 script=None,
+                 **kwargs):
+        
+        super().__init__(name, 
+                         location if location else ORIGIN, 
+                         distortion if distortion else I3,
+                         tags if tags else [],
+                         script)
+        
+        self.obj = obj # Beware! This only works if your Wavefront file
+                       # is split into triangles. No quads! Especially no n-gons.
+
+                       # Don't even think about adding vertex normals in there.
+
+        self.texture = kwargs.get("texture", None)
+
+        self.colour = colour
+        self.lit = lit if lit is not None else False
+
+        self.generate_mesh(self.obj)
+
+    def generate_mesh(self, obj):
+        vertices = []
+        uvs = []
+
+        if self.texture:
+            textureSize = (self.texture.surface.get_width() - 1,
+                           self.texture.surface.get_height() - 1)
+
+        with open(obj, "r") as obj:
+
+            for line in obj:
+                if line[0] == "v": # This could be "v" (vertex) or "vt" (texture coordinate)
+                                   # so we have to check the second character too.
+                    if line[1] == "t": # This means it's a UV coordinate.
+                        values = line.split()
+                        uvs.append([float(values[1]), float(values[2])])
+
+                    elif line[1] == " ": # We still have to check cause it could also be "vn" or "vp",
+                                         # but this means it's a vertex.
+                        values = line.split()
+                        vertices.append([float(values[1]), float(values[2]), float(values[3])])
+
+                elif line[0] == "f": # If the file's defining a face:
+
+                    # Here the line is gonna be giving us three verteces 
+                    # and three uvs in the format vertex1/uv1 v2/uv2 v3/v3,
+                    # so we have to split each element in valuses again.
+
+                    # Each one is a one-based index to a vertex or uv defined
+                    # earlier in the file.
+
+                    values = line.split()
+
+                    v = []
+                    vt = []
+
+                    for i in range(1, 4):
+                        indexes = values[i].split("/")
+                        print(f"Indexes: {indexes}")
+                        v.append(vertices[int(indexes[0]) - 1])
+
+                        try: # Sometimes you won't have UVs so we have to account for it
+                            print(f"Appending UV: {uvs[int(indexes[1]) - 1]}")
+
+                            # This is carcinogenic but we have to do this because
+                            # wavefront files store uvs with coordinates between
+                            # 1 and 0, so we have to scale it by the texture size
+
+                            relativeSpaceUVS = uvs[int(indexes[1]) - 1]
+                            textureSpaceUVS = [math.floor(relativeSpaceUVS[0] * textureSize[0]),
+                                               textureSize[1] - math.floor(relativeSpaceUVS[1] * textureSize[1])]
+                            
+                            vt.append(textureSpaceUVS)
+                        except:
+                            pass
+
+                    # Now we've extracted our values, we can instantiate our tri.
+                    if self.texture:
+                        self.add_child_relative(TextureTri(v, self.texture, vt[0], vt[1], vt[2], self.lit, ["MeshTri"]))
+                    else:
+                        self.add_child_relative(Tri(v, self.colour, self.lit, ["MeshTri"]))
+
+                        
 
 
         

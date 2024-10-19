@@ -18,26 +18,27 @@ camera = Camera("Camera", Matrix([[0],
                                   [0]]), I3, 60)
 player.add_child_relative(camera)
 
-jonkler = Texture("jonkler.png")
+ksi = Texture("ksi.png")
 
 cube = Cube("Cube", (200, 200, 200), True)
 environment.add_child_relative(cube)
 
 cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
 
+spyroTexture = Texture("spyroTexture.png")
 
-pyramid = Mesh("Pyramid", Matrix([[0],
-                                  [0],
-                                  [-8]]), I3)
-environment.add_child_relative(pyramid)
+spyro = Wavefront("Icosahedron", 
+                  "spyro.obj", 
+                  (100, 100, 0), 
+                  True, 
+                  Matrix([[2],
+                          [-1],
+                          [0]]), 
+                  I3.multiply_contents(0.5), 
+                  texture=spyroTexture)
+ROOT.add_child_relative(spyro)
 
-for i in range(4):
-    tri = TextureTri([[0, 1, 0],
-                       [-1, -1, 1],
-                       [1, -1, 1]], jonkler, (354, 0), (705, 609), (0, 609), True)
-    tri.rotate_euler_radians(0, i * (math.pi / 2), 0)
-
-    pyramid.add_child_relative(tri)
+spyro.rotate_euler_radians(0, -math.pi / 2, 0)
 
 
 leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
@@ -59,6 +60,9 @@ floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
                                                         [0]]), Matrix([[4, 0, 0],
                                                                        [0, 4, 0],
                                                                        [0, 0, 4]]))
+
+backWall.set_pattern_texture(ksi)
+
 environment.add_child_relative(floor) 
 
 floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
