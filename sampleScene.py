@@ -18,6 +18,8 @@ camera = Camera("Camera", Matrix([[0],
                                   [0]]), I3, 60)
 player.add_child_relative(camera)
 
+jonkler = Texture("jonkler.png")
+
 cube = Cube("Cube", (200, 200, 200), True)
 environment.add_child_relative(cube)
 
@@ -30,9 +32,9 @@ pyramid = Mesh("Pyramid", Matrix([[0],
 environment.add_child_relative(pyramid)
 
 for i in range(4):
-    tri = GradientTri([[0, 1, 0],
+    tri = TextureTri([[0, 1, 0],
                        [-1, -1, 1],
-                       [1, -1, 1]], (115, 75, 105), (105, 115, 75), (75, 105, 115), True)
+                       [1, -1, 1]], jonkler, (354, 0), (705, 609), (0, 609), True)
     tri.rotate_euler_radians(0, i * (math.pi / 2), 0)
 
     pyramid.add_child_relative(tri)

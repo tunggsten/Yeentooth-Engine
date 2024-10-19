@@ -765,6 +765,18 @@ pygame.display.set_caption("yeentooth")
 clock = pygame.time.Clock()
 running = True
 
+
+
+class Texture(): # This is here so I don't have to make a copy of a
+                 # surface for every triangle it's mapped to
+    def __init__(self, texturePath):
+        self.surface = pygame.image.load(texturePath)
+    
+    def get_colour_at(self, index:tuple):
+        return self.surface.get_at(index)
+
+
+
 class Image(): # This is like a shitty fake version of pygame.Surface
     def __init__(self, resolution:tuple, pixelSize:tuple, colorspace:bool):
         self.resolution = resolution
@@ -806,17 +818,27 @@ class Image(): # This is like a shitty fake version of pygame.Surface
     def interpolate_value(self, float1:float, float2:float, t:float):
         return float1 + (float2 - float1) * abs(t)
     
+    def interpolate_coordinate(self, coordinate1:tuple, coordinate2:tuple, t:float):
+        return (math.floor(coordinate1[0] + (coordinate2[0] - coordinate1[0]) * abs(t)),
+                math.floor(coordinate1[1] + (coordinate2[1] - coordinate1[1]) * abs(t)))
+    
     
 
-    def draw_horizontal_coloured_line(self, 
-                                      x1:int, 
-                                      x2:int, 
-                                      y:int,
-                                      depthBuffer, 
-                                      depth1:float,
-                                      depth2:float, 
-                                      colour1:tuple, 
-                                      colour2:tuple=None):
+    def draw_horizontal_line(self, 
+                             x1:int, 
+                             x2:int, 
+                             y:int,
+                             depthBuffer, 
+                             depth1:float,
+                             depth2:float, 
+                             colour1:tuple=None, 
+                             colour2:tuple=None,
+                             **kwargs):
+        texture = kwargs.get("texture", None) 
+
+        uv1 = kwargs.get("uv1", None)
+        uv2 = kwargs.get("uv2", None)
+
         if 0 <= y < self.resolution[1]:
             for i in range(x1, x2, 1 if x1 < x2 else -1):
                 if 0 <= i < self.resolution[0]:
@@ -828,23 +850,33 @@ class Image(): # This is like a shitty fake version of pygame.Surface
                             pixelColour = self.interpolate_colour(colour1, colour2, interpolationAmount)
                             self.contents[y][i] = pixelColour
                             depthBuffer.contents[y][i] = depth
+                        elif texture:
+                            self.contents[y][i] = texture.get_colour_at(self.interpolate_coordinate(uv1, uv2, interpolationAmount))
+                            depthBuffer.contents[y][i] = depth
                         else:
                             self.contents[y][i] = colour1
                             depthBuffer.contents[y][i] = depth
                             
                             
 
-    def draw_flat_based_coloured_triangle(self, 
-                                          bottomLeft:tuple, 
-                                          bottomRight:tuple, 
-                                          point:tuple, 
-                                          depthBuffer,
-                                          depth1:float,
-                                          depth2:float,
-                                          depth3:float,
-                                          colour1:tuple, 
-                                          colour2:tuple=None, 
-                                          colour3:tuple=None):
+    def draw_flat_based_triangle(self, 
+                                 bottomLeft:tuple, 
+                                 bottomRight:tuple, 
+                                 point:tuple, 
+                                 depthBuffer,
+                                 depth1:float,
+                                 depth2:float,
+                                 depth3:float,
+                                 colour1:tuple=None, 
+                                 colour2:tuple=None, 
+                                 colour3:tuple=None,
+                                 **kwargs):
+        texture = kwargs.get("texture", None) 
+
+        uv1 = kwargs.get("uv1", None)
+        uv2 = kwargs.get("uv2", None)
+        uv3 = kwargs.get("uv3", None)
+
         height = point[1] - bottomLeft[1]
         leftToPoint = bottomLeft[0] - point[0]
         rightToPoint = bottomRight[0] - point[0]
@@ -859,81 +891,76 @@ class Image(): # This is like a shitty fake version of pygame.Surface
             rightDepth = self.interpolate_value(depth2, depth3, amountDone)
 
             if colour2:
-                self.draw_horizontal_coloured_line(left, right, y, depthBuffer, leftDepth, rightDepth, 
+                self.draw_horizontal_line(left, right, y, depthBuffer, leftDepth, rightDepth, 
                                         self.interpolate_colour(colour1, colour3, amountDone), 
                                         self.interpolate_colour(colour2, colour3, amountDone))
+                
+            elif texture:
+                self.draw_horizontal_line(left, right, y, depthBuffer, leftDepth, rightDepth,
+                                          texture=texture,
+                                          uv1=self.interpolate_coordinate(uv1, uv3, amountDone),
+                                          uv2=self.interpolate_coordinate(uv2, uv3, amountDone))
             else:
-                self.draw_horizontal_coloured_line(left, right, y, depthBuffer, leftDepth, rightDepth, colour1)
+                self.draw_horizontal_line(left, right, y, depthBuffer, leftDepth, rightDepth, colour1)
                 
                 
 
-    def draw_coloured_triangle(self, 
-                               vertex1:tuple,
-                               vertex2:tuple,
-                               vertex3:tuple,
-                               depthBuffer,
-                               depth1:float,
-                               depth2:float,
-                               depth3:float,
-                               colour1:tuple,
-                               colour2:tuple=None,
-                               colour3:tuple=None):
+    def draw_triangle(self, 
+                      vertex1:tuple,
+                      vertex2:tuple,
+                      vertex3:tuple,
+                      depthBuffer,
+                      depth1:float,
+                      depth2:float,
+                      depth3:float,
+                      colour1:tuple=None,
+                      colour2:tuple=None,
+                      colour3:tuple=None,
+                      **kwargs):
         
+        texture = kwargs.get("texture", None) 
+
+        uv1 = kwargs.get("uv1", None)
+        uv2 = kwargs.get("uv2", None)
+        uv3 = kwargs.get("uv3", None)
+
         # Find the middle vertex
         heights = [vertex1[1], vertex2[1], vertex3[1]]
         
-        if colour2:
-            if heights[0] > heights[1]:
-                if heights[0] > heights[2]:
-                    if heights[1] > heights[2]:
-                        vertices = [vertex1, vertex2, vertex3]
-                        colours = [colour1, colour2, colour3]
-                        depths = [depth1, depth2, depth3]
-                    else:
-                        vertices = [vertex1, vertex3, vertex2]
-                        colours = [colour1, colour3, colour2]
-                        depths = [depth1, depth3, depth2]
+        if heights[0] > heights[1]:
+            if heights[0] > heights[2]:
+                if heights[1] > heights[2]:
+                    vertices = [vertex1, vertex2, vertex3]
+                    colours = [colour1, colour2, colour3]
+                    depths = [depth1, depth2, depth3]
+                    uvs = [uv1, uv2, uv3]
                 else:
-                    vertices = [vertex3, vertex1, vertex2]
-                    colours = [colour3, colour1, colour2]
-                    depths = [depth3, depth1, depth2]
+                    vertices = [vertex1, vertex3, vertex2]
+                    colours = [colour1, colour3, colour2]
+                    depths = [depth1, depth3, depth2]
+                    uvs = [uv1, uv3, uv2]
             else:
-                if heights[0] < heights[2]:
-                    if heights[1] < heights[2]:
-                        vertices = [vertex3, vertex2, vertex1]
-                        colours = [colour3, colour2, colour1]
-                        depths = [depth3, depth2, depth1]
-                    else:
-                        vertices = [vertex2, vertex3, vertex1]
-                        colours = [colour2, colour3, colour1]
-                        depths = [depth2, depth3, depth2]
-                else:
-                    vertices = [vertex2, vertex1, vertex3]
-                    colours = [colour2, colour1, colour3]
-                    depths = [depth2, depth1, depth3]
+                vertices = [vertex3, vertex1, vertex2]
+                colours = [colour3, colour1, colour2]
+                depths = [depth3, depth1, depth2]
+                uvs = [uv3, uv1, uv2]
         else:
-            if heights[0] > heights[1]:
-                if heights[0] > heights[2]:
-                    if heights[1] > heights[2]:
-                        vertices = [vertex1, vertex2, vertex3]
-                        depths = [depth1, depth2, depth3]
-                    else:
-                        vertices = [vertex1, vertex3, vertex2]
-                        depths = [depth1, depth3, depth2]
+            if heights[0] < heights[2]:
+                if heights[1] < heights[2]:
+                    vertices = [vertex3, vertex2, vertex1]
+                    colours = [colour3, colour2, colour1]
+                    depths = [depth3, depth2, depth1]
+                    uvs = [uv3, uv2, uv1]
                 else:
-                    vertices = [vertex3, vertex1, vertex2]
-                    depths = [depth3, depth1, depth2]
+                    vertices = [vertex2, vertex3, vertex1]
+                    colours = [colour2, colour3, colour1]
+                    depths = [depth2, depth3, depth1]
+                    uvs = [uv2, uv3, uv1]
             else:
-                if heights[0] < heights[2]:
-                    if heights[1] < heights[2]:
-                        vertices = [vertex3, vertex2, vertex1]
-                        depths = [depth3, depth2, depth1]
-                    else:
-                        vertices = [vertex2, vertex3, vertex1]
-                        depths = [depth2, depth3, depth2]
-                else:
-                    vertices = [vertex2, vertex1, vertex3]
-                    depths = [depth2, depth1, depth3]
+                vertices = [vertex2, vertex1, vertex3]
+                colours = [colour2, colour1, colour3]
+                depths = [depth2, depth1, depth3]
+                uvs = [uv2, uv1, uv3]
 
         triangleHeight = vertices[0][1] - vertices[2][1]
         topToBottomHorizontal = vertices[0][0] - vertices[2][0]
@@ -949,21 +976,32 @@ class Image(): # This is like a shitty fake version of pygame.Surface
         if colour2:
             sliceColour = self.interpolate_colour(colours[0], colours[2], 1 - sliceAmount)
 
-            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], 
-                                                   depthBuffer, depths[1], sliceDepth, depths[2],
-                                                   colours[1], sliceColour, colours[2])
-            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[0], 
-                                                   depthBuffer, depths[1], sliceDepth, depths[0],
-                                                   colours[1], sliceColour, colours[0])
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[2], 
+                                          depthBuffer, depths[1], sliceDepth, depths[2],
+                                          colours[1], sliceColour, colours[2])
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[0], 
+                                          depthBuffer, depths[1], sliceDepth, depths[0],
+                                          colours[1], sliceColour, colours[0])
+            
+        elif texture:
+            sliceUV = self.interpolate_coordinate(uvs[0], uvs[2], 1 - sliceAmount)
+
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[2], 
+                                          depthBuffer, depths[1], sliceDepth, depths[2],
+                                          texture=texture,
+                                          uv1=uvs[1], uv2=sliceUV, uv3=uvs[2])
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[0], 
+                                          depthBuffer, depths[1], sliceDepth, depths[0],
+                                          texture=texture,
+                                          uv1=uvs[1], uv2=sliceUV, uv3=uvs[0])
+            
         else:
-            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[2], 
-                                                   depthBuffer, depths[1], sliceDepth, depths[2],
-                                                   colour1)
-            self.draw_flat_based_coloured_triangle(vertices[1], sliceCoordinate, vertices[0],
-                                                   depthBuffer, depths[1], sliceDepth, depths[0],
-                                                   colour1)
-        
-                
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[2], 
+                                          depthBuffer, depths[1], sliceDepth, depths[2],
+                                          colour1)
+            self.draw_flat_based_triangle(vertices[1], sliceCoordinate, vertices[0],
+                                          depthBuffer, depths[1], sliceDepth, depths[0],
+                                          colour1)
 
     def render_image(self, target:pygame.Surface, position:tuple):
         for row in range(position[1], position[1] + self.resolution[1]):
@@ -986,6 +1024,9 @@ class Image(): # This is like a shitty fake version of pygame.Surface
 # This will be the colour display triangles get rendered to
 
 DISPLAY = Image((128, 96), (5, 5), True)
+
+# This stores the depth information of the scene, so we can
+# check if a pixel should be behind another pixel already rendered.
 DEPTHBUFFER = Image((128, 96), (5, 5), False)
 
 
@@ -1056,6 +1097,25 @@ class GradientTri(Tri): # This is just a tri with coloured vertices instead of a
     
     def get_albedo3(self, albedo3:tuple):
         self.albedo1 = albedo3
+
+
+
+class TextureTri(Tri): # Tri with a texture
+    def __init__(self,
+                 vertices:list[list[float]], 
+                 texture:Texture,
+                 uv1:tuple,
+                 uv2:tuple,
+                 uv3:tuple,
+                 lit:bool, 
+                 tags:list[str]=None):
+        super().__init__(vertices, (0, 0, 0), lit, tags)
+
+        self.texture = texture
+
+        self.uv1 = uv1
+        self.uv2 = uv2
+        self.uv3 = uv3
 
 
 
@@ -1272,21 +1332,27 @@ class Camera(Abstract):
                 (0 <= vertex3[0] <= 127 and
                 0 <= vertex3[1] <= 95)):
                 if type(tri) == GradientTri:
-                    DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
-                                                depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
-                                                tri.albedo1, tri.albedo2, tri.albedo3)
+                    DISPLAY.draw_triangle(vertex1, vertex2, vertex3, 
+                                          depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                          tri.albedo1, tri.albedo2, tri.albedo3)
+                    
+                elif type(tri) == TextureTri:
+                    DISPLAY.draw_triangle(vertex1, vertex2, vertex3,
+                                          depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                          texture=tri.texture,
+                                          uv1=tri.uv1, uv2=tri.uv2, uv3=tri.uv3)
 
                 else:
-                    DISPLAY.draw_coloured_triangle(vertex1, vertex2, vertex3, 
-                                                depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
-                                                tri.albedo)
+                    DISPLAY.draw_triangle(vertex1, vertex2, vertex3, 
+                                          depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
+                                          tri.albedo)
                     
             #pygame.draw.polygon(window, tri.albedo, screenSpaceCoordinates)
         
         
         
     def rasterize(self):
-        tris = ROOT.get_substracts_of_type(Tri) + ROOT.get_substracts_of_type(GradientTri)
+        tris = ROOT.get_substracts_of_type(Tri) + ROOT.get_substracts_of_type(GradientTri) + ROOT.get_substracts_of_type(TextureTri)
         
         inversion = self.objectiveDistortion.get_3x3_inverse()
         location = self.objectiveLocation.get_contents()
