@@ -91,10 +91,16 @@ while running:
         playerMovement[2] = [1]
     if keys[pygame.K_s]:
         playerMovement[2] = [-1]
+
     if keys[pygame.K_a]:
         playerMovement[0] = [-1]
     if keys[pygame.K_d]:
         playerMovement[0] = [1]
+
+    if keys[pygame.K_SPACE]:
+        playerMovement[1] = [1]
+    if keys[pygame.K_LSHIFT]:
+        playerMovement[1] = [-1]
 
     player.translate_relative(Matrix(playerMovement).set_magnitude(movementSpeed * frameDelta))
         
@@ -108,7 +114,7 @@ while running:
     if keys[pygame.K_DOWN]:
         camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
 
-    teapot.rotate_euler_radians(frameDelta, frameDelta, frameDelta)
+    teapot.rotate_euler_radians(frameDelta, frameDelta, -frameDelta)
         
     window.fill((255, 255, 255))
 

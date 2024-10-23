@@ -1526,6 +1526,9 @@ class Camera(Abstract):
 
 # ---------------- PHYSICS OBJECTS ----------------
 
+# I'm probably not going to finish these but they're here if I or 
+# someone else wants to add them in the future.
+
 
 
 # Since units are important here, let's establish some conventions:
