@@ -1471,12 +1471,12 @@ class Camera(Abstract):
             vertex3 = (math.floor(triCameraVertices[0][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeX), 
                        math.floor(-triCameraVertices[1][2] / (triCameraVertices[2][2] * self.perspectiveConstant) + displaySizeY))
 
-            if ((0 <= vertex1[0] <= 127 and # This is the worst way i could possibly do this.
-                0 <= vertex1[1] <= 95) or   # Too bad! It works so it's staying
-                (0 <= vertex2[0] <= 127 and
-                0 <= vertex2[1] <= 95) or 
-                (0 <= vertex3[0] <= 127 and
-                0 <= vertex3[1] <= 95)):
+            if ((0 <= vertex1[0] <= displaySizeX * 2 - 1 and # This is the worst way i could possibly do this.
+                0 <= vertex1[1] <= displaySizeY * 2 - 1) or   # Too bad! It works so it's staying
+                (0 <= vertex2[0] <= displaySizeX * 2 - 1 and
+                0 <= vertex2[1] <= displaySizeY * 2 - 1) or 
+                (0 <= vertex3[0] <= displaySizeX * 2 - 1 and
+                0 <= vertex3[1] <= displaySizeY * 2 - 1)):
                 
                 if type(tri) == GradientTri:
                     DISPLAY.draw_triangle(vertex1, vertex2, vertex3, 
