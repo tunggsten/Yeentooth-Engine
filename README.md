@@ -5,37 +5,15 @@
 
 ![A rotating rainbow cube in a grey room, rendered with Yeentooth](./readmephotos/graphics.gif)
 
-## **Features:**
-
- * Object System
+## **Info:**
 
 In Yeentooth, everything is built up of Abstracts. 
-Abstracts are points in 3D space, which have a set of axes their children lie and move on. Scenes in Yeentooth games are heirachies of abstracts.
+Abstracts are points in 3D space, which have a set of axes their children lie and move on. Scenes in Yeentooth games are essentially trees of abstracts, which you can initialise and program in a Python file.
 
-You can use abstract parenting to create movement systems quickly and easily, and you have fine control over both local and global coordinates.
+You get fine control over the gameloop, as you create and manage it for each of your scenes. This would probably be easier if I had any documentation for it, but it's only 1500 lines of code to reverse engineer you'll figure it out
 
- * Bespoke rendering engine
+While admittedly there aren't many high-level features built in yet, you can import uv-mapped wavefront (.obj) models and apply textures to them, and you can use all of Pygame's built in features ontop of Yeentooth's render pipeline.
 
-Yeentooth uses custom implementations of common graphical and mathematical functions, from matrix multiplication to triangle filling, ultimately built on top of Pygame. This makes it easier to modify and expand apon depending on your needs.
+For rendering, Yeentooth uses custom (aka slow ☠️) implementations of common graphical and mathematical functions, from matrix multiplication to triangle filling, built using Pygame's graphics engine. This makes it easier to modify and expand apon depending on your needs if you want to do something specific
 
-## **Planned features**
-
- * Graphical User Interface
-
-At the moment you have to instantiate and manage everything in your scene through code, but I'm working on a scene management interface which should make producing your game as easy as possible
-
- * Abstract script attachments
-
-Attatching user-written scripts to objects is generally a given in most game ingines, so this is definitely on my radar.
-
- * Basic audio, collision and raycast systems
-
-These are arguably fundamental building blocks for most games, so these are in production as well.
-
- * Import/Export process
-
-Abstract heirachies will be able to be exported as Hyperstract (.hstrct) files, which can then be instantiated into other heirachies, which ultimately mesh together into your game.
-
-
-## Just to note, I'm probably only going to do as much of the above that's required to get the marks I need. That being said, working on this project has been pretty fun, so I *might* continue on it in the future, time allowing.
-
+But yeah, if you want to then have a play around with it! You can run and look through the Sample Scene to see how everything works, and use it as a basis for your own game. If you make anything using this, don't hesitate to show me! I'd love to see what you guys are capable of doing with this 👍
