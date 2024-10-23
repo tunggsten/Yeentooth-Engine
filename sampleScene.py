@@ -18,28 +18,19 @@ camera = Camera("Camera", Matrix([[0],
                                   [0]]), I3, 60)
 player.add_child_relative(camera)
 
-ksi = Texture("ksi.png")
+blawg = Texture("blawg.png")
 
-cube = Cube("Cube", (200, 200, 200), True)
-environment.add_child_relative(cube)
-
-cube.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
-
-spyroTexture = Texture("spyroTexture.png")
-
-spyro = Wavefront("Icosahedron", 
-                  "spyro.obj", 
-                  (100, 100, 0), 
-                  True, 
-                  Matrix([[2],
-                          [-1],
+teapot = Wavefront("Teapot",
+                   "lowPolyUtahTeapot.obj",
+                   (0, 0, 0),
+                   True,
+                   Matrix([[0],
+                          [0],
                           [0]]), 
-                  I3.multiply_contents(0.5), 
-                  texture=spyroTexture)
-ROOT.add_child_relative(spyro)
+                  I3.multiply_contents(0.15),
+                  texture=blawg)
 
-spyro.rotate_euler_radians(0, -math.pi / 2, 0)
-
+environment.add_child_relative(teapot)
 
 leftWall = Plane("LeftWall", (4, 4), (0, 0, 0), True, Matrix([[-2],
                                                               [1],
@@ -61,13 +52,17 @@ floor = Plane("Ground", (4, 4), (0, 0, 0), True, Matrix([[0],
                                                                        [0, 4, 0],
                                                                        [0, 0, 4]]))
 
-backWall.set_pattern_texture(ksi)
-
 environment.add_child_relative(floor) 
 
 floor.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 backWall.set_pattern_triangles((0, 0, 0), (108, 108, 108))
 leftWall.set_pattern_triangles((252, 252, 252), (108, 108, 108))
+
+backWall.change_tris_to_gradient((248, 54, 119), (58, 244, 189), (229, 249, 54))
+
+backWall.set_distortion_relative(Matrix([[1, 0, 0],
+                                         [0, 1, 0],
+                                         [0, 0, 1]]).apply(backWall.get_distortion_relative()))
 
 
 
@@ -113,7 +108,7 @@ while running:
     if keys[pygame.K_DOWN]:
         camera.rotate_euler_radians(lookSpeed * frameDelta, 0, 0)
 
-    cube.rotate_euler_radians(frameDelta, frameDelta, 0)
+    teapot.rotate_euler_radians(frameDelta, frameDelta, frameDelta)
         
     window.fill((255, 255, 255))
 

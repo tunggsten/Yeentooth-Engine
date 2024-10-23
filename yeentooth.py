@@ -926,7 +926,8 @@ class Image(): # This is like a shitty fake version of pygame.Surface
 
         # Find the middle vertex
         heights = [vertex1[1], vertex2[1], vertex3[1]]
-        
+
+        # Believe it or not, this is a sorting algorithm.
         if heights[0] > heights[1]:
             if heights[0] > heights[2]:
                 if heights[1] > heights[2]:
@@ -1024,6 +1025,9 @@ class Image(): # This is like a shitty fake version of pygame.Surface
 # This will be the colour display triangles get rendered to
 
 DISPLAY = Image((128, 96), (5, 5), True)
+
+displaySizeX = DISPLAY.resolution[0] / 2
+displaySizeY = DISPLAY.resolution[1] / 2
 
 # This stores the depth information of the scene, so we can
 # check if a pixel should be behind another pixel already rendered.
@@ -1131,14 +1135,14 @@ class Mesh(Abstract):
         super().__init__(name, location, distortion, tags, script, parent, children)
     
     def change_tris_to_gradient(self, colour1, colour2, colour3):
-        for tri in self.get_substracts_of_type(Tri):
+        for tri in self.get_substracts_of_type(Tri) + self.get_substracts_of_type(TextureTri):
             print(tri)
             self.add_child_relative(GradientTri(tri.vertices.get_transpose().get_contents(), colour1, colour2, colour3, tri.lit, tri.tags))
             tri.kill_self_and_substracts()
             del tri
     
     def change_tris_to_flat_colour(self, colour):
-        for tri in self.get_substracts_of_type(GradientTri):
+        for tri in self.get_substracts_of_type(GradientTri) + self.get_substracts_of_type(TextureTri):
             self.add_child_relative(Tri(tri.vertices.get_transpose().get_contents(), colour, tri.lit, tri.tags))
             tri.kill_self_and_substracts()
             del tri
@@ -1235,7 +1239,7 @@ class Plane(Mesh):
                                                    ((i+1) * UVWidth, textureHeight - (j/2) * UVHeight), True))
         
         for tri in tris:
-            tri.kill_self()
+            tri.kill_self_and_substracts()
 
 
 
@@ -1458,12 +1462,6 @@ class Camera(Abstract):
         if triCameraVertices[2][0] > 0.1 and triCameraVertices[2][1] > 0.1 and triCameraVertices[2][2] > 0.1:
             # Culls all tris behind the camera
 
-            if tri.lit and lights: # Calculates normal and changes brightness accordingly
-                pass
-            
-            displaySizeX = DISPLAY.resolution[0] / 2
-            displaySizeY = DISPLAY.resolution[1] / 2
-
             vertex1 = (math.floor(triCameraVertices[0][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + displaySizeX), 
                        math.floor(-triCameraVertices[1][0] / (triCameraVertices[2][0] * self.perspectiveConstant) + displaySizeY))
             
@@ -1479,6 +1477,7 @@ class Camera(Abstract):
                 0 <= vertex2[1] <= 95) or 
                 (0 <= vertex3[0] <= 127 and
                 0 <= vertex3[1] <= 95)):
+                
                 if type(tri) == GradientTri:
                     DISPLAY.draw_triangle(vertex1, vertex2, vertex3, 
                                           depthBuffer, triCameraVertices[2][0], triCameraVertices[2][1], triCameraVertices[2][2],
